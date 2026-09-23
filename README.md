@@ -115,6 +115,10 @@ Grok. Removing the hook restores any existing status line command.
 Outside Herdr and tmux, Grok needs a follow-up request to restore after `/new`:
 its SessionStart hook output is not delivered to the agent.
 
+## Using Keel? Tell us
+
+Using Keel? Star <a href="https://github.com/badjin/keel" target="_blank" rel="noopener">https://github.com/badjin/keel</a> or say hi in its Discussions (<a href="https://github.com/badjin/keel/discussions" target="_blank" rel="noopener">https://github.com/badjin/keel/discussions</a>) — it tells us people use it.
+
 ## Privacy
 
 - The GitHub token exists only in memory while the server is running. It is

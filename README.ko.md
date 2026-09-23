@@ -92,6 +92,10 @@ python3 app/server.py
 4. **완료 / Obsidian** — 설치 요약을 보여주고, Obsidian 이 있으면 지식 베이스를
    바로 열어 줍니다. 없으면 설치 안내를 보여줍니다.
 
+## Keel 을 쓰고 계신가요? 알려 주세요
+
+Keel 을 쓰고 계신다면 <a href="https://github.com/badjin/keel" target="_blank" rel="noopener">https://github.com/badjin/keel</a> 에 Star 를 누르거나 Discussions(<a href="https://github.com/badjin/keel/discussions" target="_blank" rel="noopener">https://github.com/badjin/keel/discussions</a>)에 한 줄 남겨 주세요 — 쓰는 사람이 있다는 걸 알 수 있습니다.
+
 ## 개인정보
 
 - GitHub 토큰은 서버가 켜져 있는 동안 메모리에만 있습니다. 디스크, 로그,

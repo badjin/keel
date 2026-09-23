@@ -39,13 +39,17 @@ class TestAppJsIsTracked(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "app/static/app.js")
 
 
+# Links the user clicks on the Finish tab (not loaded by the page).
+USER_LINKS = {"https://github.com/badjin/keel", "https://github.com/badjin/keel/discussions"}
+
+
 class TestIndexHtml(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.html = (STATIC / "index.html").read_text(encoding="utf-8")
 
     def test_no_stray_network_urls(self):
-        urls = re.findall(r"https?://\S+", self.html)
+        urls = [u for u in re.findall(r'https?://[^\s"\'`)<]+', self.html) if u not in USER_LINKS]
         self.assertEqual(urls, [], f"unexpected network URLs in index.html: {urls}")
 
 
@@ -79,10 +83,10 @@ class TestAppJs(unittest.TestCase):
 
 class TestStaticNetworkReferences(unittest.TestCase):
     def test_only_obsidian_and_svg_namespace_urls_are_present(self):
-        allowed = {"https://obsidian.md/download", "http://www.w3.org/2000/svg"}
+        allowed = {"https://obsidian.md/download", "http://www.w3.org/2000/svg"} | USER_LINKS
         for name in ("index.html", "app.css", "app.js"):
             source = (STATIC / name).read_text(encoding="utf-8")
-            urls = re.findall(r'https?://[^\s"\'`)]+', source)
+            urls = re.findall(r'https?://[^\s"\'`)<]+', source)
             for url in urls:
                 self.assertIn(url, allowed, f"unexpected network URL in {name}: {url}")
 
