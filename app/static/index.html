@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title data-i18n="app.title">Keel</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <div class="masthead-title">
+      <h1 data-i18n="app.title">Keel</h1>
+      <p class="subtitle" data-i18n="app.subtitle">Knowledge base and hooks for AI coding agents</p>
+    </div>
+    <div class="masthead-right">
+      <div class="lang-toggle" id="lang-toggle" role="group" aria-label="Language" data-i18n-attr='{"aria-label":"github.languageLabel"}'>
+        <button type="button" class="lang-btn" id="lang-btn-en" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" class="lang-btn" id="lang-btn-ko" data-lang="ko" lang="ko" aria-pressed="false">한국어</button>
+      </div>
+      <p class="version" id="app-version"></p>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="tab-rail" role="tablist" aria-label="Install steps" data-i18n-attr='{"aria-label":"nav.installSteps"}'>
+      <p class="nav-label" data-i18n="nav.installSteps">Install steps</p>
+      <button class="tab" role="tab" id="tab-btn-hooks" aria-controls="panel-hooks" aria-selected="true" data-tab="hooks">
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">01</span><span class="tab-label" data-i18n="tabs.hooks">Hooks</span>
+      </button>
+      <button class="tab" role="tab" id="tab-btn-wiki" aria-controls="panel-wiki" aria-selected="false" data-tab="wiki">
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">02</span><span class="tab-label" data-i18n="tabs.wiki">Knowledge Base</span>
+      </button>
+      <button class="tab" role="tab" id="tab-btn-github" aria-controls="panel-github" aria-selected="false" data-tab="github">
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">03</span><span class="tab-label" data-i18n="tabs.github">GitHub</span><span class="tab-optional" data-i18n="tabs.optional">optional</span>
+      </button>
+      <button class="tab" role="tab" id="tab-btn-finish" aria-controls="panel-finish" aria-selected="false" data-tab="finish">
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">04</span><span class="tab-label" data-i18n="tabs.finish">Finish</span>
+      </button>
+    </nav>
+
+    <main class="content">
+
+      <!-- ===================== Panel 1: Hooks ===================== -->
+      <section class="panel" id="panel-hooks" role="tabpanel" aria-labelledby="tab-btn-hooks">
+        <p class="breadcrumb" data-i18n="hooks.breadcrumb">Install / Hooks</p>
+        <h2><span class="step-num">1.</span> <span data-i18n="tabs.hooks">Hooks</span></h2>
+        <p class="lede" data-i18n="hooks.lede">
+          Hooks are small scripts that automatically step in at specific moments of an
+          agent session. See below on the lifecycle rail when each hook runs. Clicking a
+          card on the rail jumps to that hook's list.
+        </p>
+
+        <div class="radio-row" id="hook-targets" data-section="targets">
+          <label><input type="checkbox" id="target-claude" value="claude"> Claude Code</label>
+          <label><input type="checkbox" id="target-codex" value="codex"> Codex</label>
+          <label><input type="checkbox" id="target-grok" value="grok"> Grok</label>
+        </div>
+        <p class="field-note" id="target-detect-note"></p>
+        <p class="field-note" data-i18n="hooks.wikiPathNote">The KB path is set in the Knowledge Base tab.</p>
+        <p class="field-note" id="grok-via-claude-note" hidden data-i18n="hooks.grokViaClaudeNote">
+          Claude Code is also selected, so Grok will read its hooks from ~/.claude/settings.json — no separate Grok hook file is written.
+        </p>
+        <p class="field-note warn" id="grok-statusline-manual-note" hidden data-i18n="hooks.grokStatuslineManual">
+          Grok's existing status line uses a form this installer cannot wrap. Set the Keel status line in ~/.grok/config.toml by hand.
+        </p>
+        <p class="field-note warn" id="codex-hooks-note" hidden data-i18n="hooks.codexTrustNote">
+          After install, approve the new hooks in Codex — see "Trust the new hooks in Codex" below.
+        </p>
+
+        <div class="lifecycle-rail" id="lifecycle-rail" role="list" aria-label="Session lifecycle rail" data-section="lifecycle" data-i18n-attr='{"aria-label":"hooks.lifecycleRail"}'></div>
+
+        <div class="event-group" id="event-SessionStart" data-event="SessionStart">
+          <h3><span class="station-tag">1</span><span data-i18n="events.SessionStart">Session start</span> <span class="event-code">(SessionStart)</span></h3>
+          <div class="card-list" data-event-list="SessionStart"></div>
+        </div>
+        <div class="event-group" id="event-UserPromptSubmit" data-event="UserPromptSubmit">
+          <h3><span class="station-tag">2</span><span data-i18n="events.UserPromptSubmit">Request submitted</span> <span class="event-code">(UserPromptSubmit)</span></h3>
+          <div class="card-list" data-event-list="UserPromptSubmit"></div>
+        </div>
+        <div class="event-group" id="event-PreToolUse" data-event="PreToolUse">
+          <h3><span class="station-tag">3</span><span data-i18n="events.PreToolUse">Before tool use</span> <span class="event-code">(PreToolUse)</span></h3>
+          <div class="card-list" data-event-list="PreToolUse"></div>
+        </div>
+        <div class="event-group" id="event-PostToolUse" data-event="PostToolUse">
+          <h3><span class="station-tag">4</span><span data-i18n="events.PostToolUse">After tool use</span> <span class="event-code">(PostToolUse)</span></h3>
+          <div class="card-list" data-event-list="PostToolUse"></div>
+        </div>
+        <div class="event-group" id="event-Stop" data-event="Stop">
+          <h3><span class="station-tag">5</span><span data-i18n="events.Stop">Answer finished</span> <span class="event-code">(Stop)</span></h3>
+          <div class="card-list" data-event-list="Stop"></div>
+        </div>
+        <div class="event-group" id="event-SessionEnd" data-event="SessionEnd">
+          <h3><span class="station-tag">6</span><span data-i18n="events.SessionEnd">Session end</span> <span class="event-code">(SessionEnd)</span></h3>
+          <div class="card-list" data-event-list="SessionEnd"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" id="btn-install-hooks"><span class="label" data-i18n="hooks.installBtn">Install selected hooks</span><span class="spinner">…</span></button>
+          <button class="btn danger" id="btn-uninstall-hooks"><span class="label" data-i18n="hooks.uninstallBtn">Remove all kit hooks</span><span class="spinner">…</span></button>
+        </div>
+        <div class="radio-row">
+          <label><input type="checkbox" id="uninstall-remove-skills"> <span data-i18n="hooks.removeSkillsToo">Also remove skills</span></label>
+        </div>
+        <p class="inline-error" id="hooks-error"></p>
+
+        <div class="field-group" id="codex-trust-guide" hidden>
+          <h3 data-i18n="hooks.codexTrustGuideTitle">Trust the new hooks in Codex</h3>
+          <ol data-i18n="hooks.codexTrustGuideSteps">
+            <li>Open a terminal.</li>
+            <li>Run <code>codex</code>.</li>
+            <li>Type <code>/hooks</code>.</li>
+            <li>Approve the Keel hooks listed there.</li>
+          </ol>
+          <div class="btn-row">
+            <button class="btn secondary" id="btn-codex-check-approval"><span class="label" data-i18n="hooks.codexCheckApprovalBtn">Check approval</span><span class="spinner">…</span></button>
+          </div>
+          <p class="field-note" id="codex-trust-result"></p>
+        </div>
+
+        <div class="btn-row step-pagination"><span></span><button class="btn secondary" type="button" data-next="wiki"><span data-i18n="nav.nextWiki">Next: KB →</span></button></div>
+      </section>
+
+      <!-- ===================== Panel 2: Knowledge Base ===================== -->
+      <section class="panel" id="panel-wiki" role="tabpanel" aria-labelledby="tab-btn-wiki" hidden>
+        <p class="breadcrumb" data-i18n="wiki.breadcrumb">Install / Knowledge Base</p>
+        <h2><span class="step-num">2.</span> <span data-i18n="tabs.wiki">Knowledge Base</span></h2>
+        <p class="lede" data-i18n="wiki.lede">The knowledge base is created with the following structure.</p>
+
+        <div class="catalogue-drawer setup-tree" id="wiki-structure">
+          <div class="drawer-card">
+            <span class="entry-name">index.md</span>
+            <span class="entry-desc" data-i18n="wiki.tree.index">Knowledge base entry point</span>
+          </div>
+          <div class="drawer-card">
+            <span class="entry-name">schema.md</span>
+            <span class="entry-desc" data-i18n="wiki.tree.schema">Folder structure and page-writing rules</span>
+          </div>
+          <div class="drawer-card">
+            <span class="entry-name">raw/</span>
+            <span class="entry-desc" data-i18n="wiki.tree.raw">Unprocessed raw session records</span>
+          </div>
+          <div class="drawer-card">
+            <span class="entry-name">wiki/</span>
+            <span class="entry-desc" data-i18n="wiki.tree.wiki">Organized topic pages</span>
+          </div>
+          <div class="drawer-card">
+            <span class="entry-name">repos/&lt;name&gt;/</span>
+            <span class="entry-desc" data-i18n="wiki.tree.repos">Pages generated from repository history</span>
+          </div>
+        </div>
+
+        <div class="field" id="wiki-path-section">
+          <span class="field-label" data-i18n="wiki.locationLabel">Knowledge base location</span>
+          <div class="folder-browser" id="wiki-location-browser">
+            <div class="path-bar">
+              <button class="btn secondary" type="button" id="btn-wiki-location-up"><span class="label" data-i18n="common.up">Up</span></button>
+              <span id="wiki-location-current-path"></span>
+            </div>
+            <div class="folder-list" id="wiki-location-list"></div>
+          </div>
+          <label class="field" for="wiki-folder-name">
+            <span data-i18n="wiki.folderNameLabel">Folder name</span>
+            <input type="text" id="wiki-folder-name" value="knowledge-base">
+          </label>
+          <p class="field-note" data-i18n="wiki.folderNameHint">An empty new folder is fine — it will be created if it doesn't exist.</p>
+          <label class="field" for="wiki-path">
+            <span data-i18n="wiki.fullPathLabel">Full path</span>
+            <input type="text" id="wiki-path" readonly>
+          </label>
+        </div>
+
+        <div class="radio-row">
+          <label><input type="radio" name="wiki-lang" value="ko"> 한국어</label>
+          <label><input type="radio" name="wiki-lang" value="en" checked> English</label>
+        </div>
+
+        <div class="choice-cards" id="wiki-mode-cards" role="radiogroup" aria-label="Knowledge base start mode" data-section="wiki-mode" data-i18n-attr='{"aria-label":"wiki.modeLabel"}'>
+          <label class="choice-card">
+            <input type="radio" name="wiki-mode" value="empty" checked>
+            <span class="choice-title" data-i18n="wiki.modeEmptyTitle">Start with an empty knowledge base</span>
+            <span class="choice-desc" data-i18n="wiki.modeEmptyDesc">Creates only the folder structure, leaving the content empty.</span>
+          </label>
+          <label class="choice-card">
+            <input type="radio" name="wiki-mode" value="folder">
+            <span class="choice-title" data-i18n="wiki.modeFolderTitle">Build from folders on my computer</span>
+            <span class="choice-desc" data-i18n="wiki.modeFolderDesc">Uses git repositories inside the chosen folders as knowledge base material.</span>
+          </label>
+        </div>
+
+        <div class="folder-browser" id="folder-browser" hidden>
+          <div class="path-bar">
+            <button class="btn secondary" id="btn-folder-up"><span class="label" data-i18n="common.up">Up</span></button>
+            <span id="folder-current-path"></span>
+          </div>
+          <div class="folder-list" id="folder-list"></div>
+        </div>
+        <div id="chosen-folders"></div>
+
+        <div class="btn-row">
+          <button class="btn" id="btn-init-wiki"><span class="label" data-i18n="wiki.createBtn">Create knowledge base</span><span class="spinner">…</span></button>
+        </div>
+        <p class="inline-error" id="wiki-error"></p>
+        <ul class="summary-list" id="wiki-result"></ul>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="hooks"><span data-i18n="nav.prev">← Back</span></button><button class="btn secondary" type="button" data-next="github"><span data-i18n="nav.nextGithub">Next: GitHub →</span></button></div>
+      </section>
+
+      <!-- ===================== Panel 3: GitHub ===================== -->
+      <section class="panel" id="panel-github" role="tabpanel" aria-labelledby="tab-btn-github" hidden>
+        <p class="breadcrumb" data-i18n="github.breadcrumb">Install / GitHub</p>
+        <h2><span class="step-num">3.</span> <span data-i18n="tabs.github">GitHub</span> (<span data-i18n="tabs.optional">optional</span>)</h2>
+        <p class="lede" data-i18n="github.lede">
+          Connecting GitHub reads the changes (merges, commits) that landed on the chosen repository's
+          main branch over the last N days and builds a per-repository index page. The token stays in
+          memory only while this window is open on this computer, and is never stored anywhere. File
+          contents are never read — only the commit history is.
+        </p>
+
+        <div class="btn-row" id="github-connect">
+          <button class="btn" id="btn-gh-login" hidden><span class="label" data-i18n="github.useGhLogin">Use gh login</span><span class="spinner">…</span></button>
+        </div>
+
+        <details class="disclosure" id="gh-token-disclosure">
+          <summary data-i18n="github.enterTokenDirectly">Enter a token directly</summary>
+          <label class="field" id="gh-token-field">
+            <span data-i18n="github.tokenLabel">GitHub personal access token</span>
+            <input type="password" id="gh-token" autocomplete="off" placeholder="ghp_...">
+          </label>
+          <div class="btn-row">
+            <button class="btn" id="btn-gh-connect"><span class="label" data-i18n="github.connectBtn">Connect</span><span class="spinner">…</span></button>
+          </div>
+        </details>
+        <p class="inline-error" id="gh-connect-error"></p>
+        <p class="field-note" id="gh-whoami"></p>
+
+        <label class="field" for="repo-search">
+          <span data-i18n="github.repoSearchLabel">Search repositories</span>
+          <input type="text" id="repo-search" class="repo-search" placeholder="Search by name" data-i18n-attr='{"placeholder":"github.repoSearchPlaceholder"}'>
+        </label>
+        <div id="repo-list" data-section="repositories"></div>
+
+        <h3 data-i18n="github.localReposHeading">Local repositories</h3>
+        <p class="field-note" data-i18n="github.localReposHint">If you build the knowledge base in folder-picker mode on the Knowledge Base tab, git folders inside it appear here.</p>
+        <div id="local-repo-list"></div>
+
+        <div class="due-slip" id="github-period">
+          <div class="due-display" id="due-display">Last 90 days</div>
+          <input type="range" id="due-range" min="30" max="180" value="90" step="1">
+          <div class="ticks"><span>30</span><span>60</span><span>90</span><span>120</span><span>150</span><span>180</span></div>
+          <label class="field" style="margin-top:0.75rem;">
+            <span data-i18n="github.dueNumberLabel">Days (enter directly)</span>
+            <input type="number" id="due-number" min="30" max="180" value="90">
+          </label>
+        </div>
+
+        <div class="field-label" data-i18n="github.languageLabel">Language</div>
+        <div class="segmented" id="gh-lang-row" role="radiogroup" aria-label="Language" data-i18n-attr='{"aria-label":"github.languageLabel"}'></div>
+
+        <div class="field-label" data-i18n="github.llmSummaryLabel">LLM summary</div>
+        <div class="segmented" id="gh-llm" role="radiogroup" aria-label="LLM summary" data-i18n-attr='{"aria-label":"github.llmSummaryLabel"}'></div>
+        <p class="field-note" data-i18n="github.llmQuotaNote">Uses the chosen CLI's quota.</p>
+
+        <div class="btn-row" id="github-run">
+          <button class="btn" id="btn-gh-run"><span class="label" data-i18n="github.runBtn">Build knowledge base pages</span><span class="spinner">…</span></button>
+        </div>
+        <p class="inline-error" id="gh-run-error"></p>
+
+        <div class="ledger" id="gh-log"></div>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="wiki"><span data-i18n="nav.prev">← Back</span></button><button class="btn secondary" type="button" data-next="finish"><span data-i18n="nav.nextFinish">Next: Finish →</span></button></div>
+      </section>
+
+      <!-- ===================== Panel 4: Finish ===================== -->
+      <section class="panel" id="panel-finish" role="tabpanel" aria-labelledby="tab-btn-finish" hidden>
+        <p class="breadcrumb" data-i18n="finish.breadcrumb">Install / Finish</p>
+        <h2><span class="step-num">4.</span> <span data-i18n="tabs.finish">Finish</span></h2>
+        <div class="btn-row" id="finish-summary-section">
+          <button class="btn" id="btn-finish"><span class="label" data-i18n="finish.finishBtn">Finish install</span><span class="spinner">…</span></button>
+        </div>
+        <p class="inline-error" id="finish-error"></p>
+        <ul class="summary-list" id="finish-summary"></ul>
+        <p class="field-note" data-i18n="finish.lintNote">Orphan pages and broken links do not fix themselves. Every so often, tell the
+          agent "run the kb lint" (the kb-lint skill).</p>
+
+        <h3 id="obsidian-section">Obsidian</h3>
+        <div id="obsidian-found">
+          <div class="btn-row">
+            <button class="btn" id="btn-obsidian-open"><span class="label" data-i18n="finish.openObsidianBtn">Open in Obsidian</span><span class="spinner">…</span></button>
+          </div>
+        </div>
+        <div id="obsidian-missing" hidden>
+          <p class="lede" data-i18n="finish.obsidianMissing">Obsidian was not found on this computer.</p>
+          <div class="copy-row">
+            <code id="obsidian-brew">brew install --cask obsidian</code>
+            <button class="btn secondary" id="btn-copy-brew"><span class="label" data-i18n="common.copy">Copy</span></button>
+            <a id="obsidian-download-link" target="_blank" rel="noopener" data-i18n="finish.downloadPage">Download page</a>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" id="btn-obsidian-recheck"><span class="label" data-i18n="finish.recheckBtn">Check again</span><span class="spinner">…</span></button>
+          </div>
+        </div>
+
+        <h3 data-i18n="finish.undoHeading">Undo order</h3>
+        <p class="lede" data-i18n="finish.undoIntro">
+          The order matters — if you delete <code>~/.keel</code> before removing the
+          hooks, the scripts the already-registered hooks point to disappear, and Claude Code /
+          Codex / Grok can error out and get stuck.
+        </p>
+        <ol>
+          <li data-i18n="finish.undoStep1">
+            <strong>Remove the hooks first.</strong> On the Hooks tab, keep the
+            <strong>Claude Code</strong>, <strong>Codex</strong>, and <strong>Grok</strong>
+            checkboxes on, then press the
+            <strong>"Remove all kit hooks"</strong> button. If you also want the installed
+            knowledge base skills removed, turn on the <strong>"Also remove skills"</strong>
+            checkbox.
+          </li>
+          <li data-i18n="finish.undoStep2">
+            <strong>Only then</strong> delete <code>~/.keel</code>
+            yourself. The knowledge base folder itself is left alone.
+          </li>
+        </ol>
+        <p class="lede" data-i18n="finish.undoConfigToml">
+          The <code>hooks = true</code> line in <code>~/.codex/config.toml</code>
+          is not removed by this procedure. Remove it yourself only if
+          you are sure nothing else needs it.
+        </p>
+        <p class="lede" data-i18n="finish.undoWhatChanges">
+          What this program changes:
+          the hook entries in <code>~/.claude/settings.json</code> /
+          <code>~/.codex/hooks.json</code> / <code>~/.grok/hooks/keel.json</code>,
+          the status line in <code>~/.grok/config.toml</code>,
+          <code>hooks = true</code> in <code>~/.codex/config.toml</code>,
+          the knowledge base skills under <code>~/.claude/skills</code>, <code>~/.codex/skills</code>,
+          and <code>~/.grok/skills</code>,
+          the <code>.bak-*</code> backup files left next to them, and
+          <code>~/.keel</code> itself.
+        </p>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="github"><span data-i18n="nav.prev">← Back</span></button><span></span></div>
+      </section>
+
+    </main>
+    <aside class="toc" aria-label="On this step" data-i18n-attr='{"aria-label":"toc.onThisStep"}'>
+      <p class="toc-label" data-i18n="toc.onThisStep">On this step</p>
+      <div class="toc-panel" data-toc="hooks">
+        <a href="#hook-targets" data-i18n="toc.targetClis">Target CLIs</a><a href="#lifecycle-rail" data-i18n="toc.lifecycle">Lifecycle</a><a href="#event-SessionStart" data-i18n="events.SessionStart">Session start</a><a href="#event-UserPromptSubmit" data-i18n="events.UserPromptSubmit">Request submitted</a><a href="#event-PreToolUse" data-i18n="events.PreToolUse">Before tool use</a><a href="#event-PostToolUse" data-i18n="events.PostToolUse">After tool use</a><a href="#event-Stop" data-i18n="events.Stop">Answer finished</a><a href="#event-SessionEnd" data-i18n="events.SessionEnd">Session end</a>
+      </div>
+      <div class="toc-panel" data-toc="wiki" hidden><a href="#wiki-structure" data-i18n="toc.structure">Structure</a><a href="#wiki-path-section" data-i18n="toc.path">Path</a><a href="#wiki-mode-cards" data-i18n="toc.mode">Mode</a></div>
+      <div class="toc-panel" data-toc="github" hidden><a href="#github-connect" data-i18n="toc.connect">Connect</a><a href="#repo-list" data-i18n="toc.repositories">Repositories</a><a href="#github-period" data-i18n="toc.periodLanguage">Period / language</a><a href="#github-run" data-i18n="toc.run">Run</a></div>
+      <div class="toc-panel" data-toc="finish" hidden><a href="#finish-summary-section" data-i18n="toc.summary">Summary</a><a href="#obsidian-section">Obsidian</a></div>
+    </aside>
+  </div>
+</div>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+kit/state/
+.execute-plan-status.json
+.execute-plan.log
+
+# ~/.gitignore_global has a stray "app.js" rule that isn't about this repo;
+# un-ignore our own file so it can be tracked (repo .gitignore wins locally).
+!app/static/app.js
+.execute-plan-agent.log
