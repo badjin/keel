@@ -126,7 +126,7 @@ class FetchRepoTest(unittest.TestCase):
         token_b64 = base64.b64encode(f"x-access-token:{token}".encode("utf-8")).decode("ascii")
         recorded = {}
 
-        def fake_run(args, capture_output, text, env, check):
+        def fake_run(args, capture_output, text, env, check, timeout=None):
             recorded["args"] = args
             recorded["env"] = env
             return subprocess.CompletedProcess(
@@ -151,7 +151,7 @@ class FetchRepoTest(unittest.TestCase):
     def test_success_never_writes_token_to_dest_config(self):
         token = "ghp_supersecrettoken"
 
-        def fake_run(args, capture_output, text, env, check):
+        def fake_run(args, capture_output, text, env, check, timeout=None):
             dest = Path(args[-1])
             dest.mkdir(parents=True, exist_ok=True)
             (dest / "config").write_text("[core]\n\tbare = true\n", encoding="utf-8")
@@ -168,7 +168,7 @@ class FetchRepoTest(unittest.TestCase):
         token = "ghp_tok"
         recorded = {}
 
-        def fake_run(args, capture_output, text, env, check):
+        def fake_run(args, capture_output, text, env, check, timeout=None):
             recorded["args"] = args
             recorded["env"] = env
             dest = Path(args[-1])
@@ -189,7 +189,7 @@ class FetchRepoTest(unittest.TestCase):
         dest.mkdir(parents=True, exist_ok=True)
         recorded = {}
 
-        def fake_run(args, capture_output, text, env, check):
+        def fake_run(args, capture_output, text, env, check, timeout=None):
             recorded["args"] = args
             recorded["env"] = env
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
@@ -210,7 +210,7 @@ class FetchRepoTest(unittest.TestCase):
         (dest / "shallow").write_text("deadbeef\n", encoding="utf-8")
         recorded = {}
 
-        def fake_run(args, capture_output, text, env, check):
+        def fake_run(args, capture_output, text, env, check, timeout=None):
             recorded["args"] = args
             recorded["env"] = env
             return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")

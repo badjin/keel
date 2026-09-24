@@ -195,7 +195,7 @@ class ServerCoreTest(unittest.TestCase):
             body={"targets": ["claude"], "remove_skills": True},
         )
         self.assertEqual(status, 200)
-        self.assertEqual(len(body["skills_removed"]), 3)
+        self.assertEqual(len(body["skills_removed"]), 4)
         self.assertFalse(skill_path.exists())
 
     def test_static_serving_content_types_and_404s(self):

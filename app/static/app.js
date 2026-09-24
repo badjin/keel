@@ -865,6 +865,38 @@ function populateBranchSelect(branchSel, list, selectedBranch, defaultBranch) {
   });
 }
 
+function watchedConfigEntry(repo) {
+  // Keyed by repo only: pages are rendered per repo (one page set per
+  // repo, regardless of branch), so `config.watch_repos` never carries
+  // more than one entry per repo — see server `_record_watch_repo`.
+  const list = (state.env && state.env.config && state.env.config.watch_repos) || [];
+  return list.find((w) => w && w.repo === repo) || null;
+}
+
+function applyWatchResultsLocally(items) {
+  // After a successful run, `config.json` on disk now reflects `items`'
+  // watch flags, but `state.env.config` (loaded once at boot) does not —
+  // update it here so a repo unticked-then-reticked later in the same
+  // page session sees the just-written state instead of a stale one.
+  if (!state.env || !state.env.config) return;
+  const watchRepos = Array.isArray(state.env.config.watch_repos) ? state.env.config.watch_repos.slice() : [];
+  items.forEach((item) => {
+    if (item.kind !== "github") return;
+    const idx = watchRepos.findIndex((w) => w && w.repo === item.repo_or_path);
+    if (idx !== -1) watchRepos.splice(idx, 1);
+    if (item.watch) {
+      watchRepos.push({
+        repo: item.repo_or_path,
+        branch: item.branch,
+        days: item.days,
+        language: item.language,
+        llm: item.llm,
+      });
+    }
+  });
+  state.env.config.watch_repos = watchRepos;
+}
+
 function renderRepoList() {
   const q = document.getElementById("repo-search").value.trim().toLowerCase();
   const wrap = document.getElementById("repo-list");
@@ -897,13 +929,31 @@ function renderRepoList() {
       branchSel.hidden = !existing;
       row.appendChild(branchSel);
 
+      const watchLabel = document.createElement("label");
+      watchLabel.className = "watch-checkbox";
+      watchLabel.hidden = !existing;
+      const watchBox = document.createElement("input");
+      watchBox.type = "checkbox";
+      watchLabel.appendChild(watchBox);
+      watchLabel.appendChild(document.createTextNode(" " + t("github.watchLabel")));
+      row.appendChild(watchLabel);
+
+      // `loadBranches` fires on every redraw of this row (search typing
+      // re-renders the whole list, a branch-list fetch resolves later) —
+      // it must only ever restore the checkbox from the in-memory
+      // selection (`sel.watch`), never recompute it from config, or a
+      // user's still-unsaved tick/untick would be lost on the next redraw.
       const loadBranches = async () => {
         try {
           const branches = await api(`/api/github/branches?repo=${encodeURIComponent(name)}`);
           const list = branches.branches || branches || [];
-          const selectedBranch = state.selectedRepos[name] ? state.selectedRepos[name].branch : "";
+          const sel = state.selectedRepos[name];
+          const selectedBranch = sel ? sel.branch : "";
           populateBranchSelect(branchSel, list, selectedBranch, defaultBranch);
-          if (state.selectedRepos[name]) state.selectedRepos[name].branch = branchSel.value;
+          if (sel) {
+            sel.branch = branchSel.value;
+            watchBox.checked = !!sel.watch;
+          }
         } catch (e) {
           showError("gh-run-error", e.message);
         }
@@ -911,19 +961,36 @@ function renderRepoList() {
 
       box.addEventListener("change", () => {
         if (box.checked) {
-          state.selectedRepos[name] = { kind: "github", branch: (existing && existing.branch) || defaultBranch || "" };
+          // The config default (repo-only match, per `_record_watch_repo`)
+          // is applied exactly once, right here at first selection — not
+          // on any later redraw or branch-list load.
+          const configured = watchedConfigEntry(name);
+          state.selectedRepos[name] = {
+            kind: "github",
+            branch: (existing && existing.branch) || (configured && configured.branch) || defaultBranch || "",
+            watch: !!configured,
+          };
+          watchBox.checked = state.selectedRepos[name].watch;
           branchSel.hidden = false;
+          watchLabel.hidden = false;
           loadBranches();
         } else {
           delete state.selectedRepos[name];
           branchSel.hidden = true;
+          watchLabel.hidden = true;
         }
       });
       branchSel.addEventListener("change", () => {
         if (state.selectedRepos[name]) state.selectedRepos[name].branch = branchSel.value;
       });
+      watchBox.addEventListener("change", () => {
+        if (state.selectedRepos[name]) state.selectedRepos[name].watch = watchBox.checked;
+      });
 
-      if (existing) loadBranches();
+      if (existing) {
+        watchBox.checked = !!existing.watch;
+        loadBranches();
+      }
 
       wrap.appendChild(row);
     });
@@ -1009,19 +1076,30 @@ document.getElementById("btn-gh-run").addEventListener("click", () => {
   setBusy(btn, true);
   (async () => {
     try {
-      const items = Object.entries(state.selectedRepos).map(([key, v]) => ({
-        kind: v.kind,
-        repo_or_path: key,
-        branch: v.branch || null,
-      }));
-      if (!items.length) throw uiError("github.chooseRepo");
       const days = Number(dueNumber.value) || 90;
+      const items = Object.entries(state.selectedRepos).map(([key, v]) => {
+        const item = { kind: v.kind, repo_or_path: key, branch: v.branch || null };
+        if (v.kind === "github") {
+          item.watch = !!v.watch;
+          // Carried on the item (not read from outer scope later) so a
+          // post-success local config update can rebuild exactly the
+          // entry the server just wrote to config.json.
+          item.days = days;
+          item.language = state.ghLanguage;
+          item.llm = state.ghLlm || null;
+        }
+        return item;
+      });
+      if (!items.length) throw uiError("github.chooseRepo");
       const res = await api("/api/history/run", {
         method: "POST",
         body: { items, days, language: state.ghLanguage, llm: state.ghLlm || null },
       });
       state.jobId = res.job;
-      pollJob(() => setBusy(btn, false));
+      pollJob(
+        () => setBusy(btn, false),
+        () => applyWatchResultsLocally(items)
+      );
     } catch (e) {
       showError("gh-run-error", e.message || String(e), e.i18nKey, e.i18nVars);
       setBusy(btn, false);
@@ -1046,7 +1124,7 @@ function appendLog(line) {
   log.scrollTop = log.scrollHeight;
 }
 
-function pollJob(onDone) {
+function pollJob(onDone, onSuccess) {
   if (state.jobTimer) clearInterval(state.jobTimer);
   let seenLines = 0;
   const finish = () => {
@@ -1065,6 +1143,7 @@ function pollJob(onDone) {
           showError("gh-run-error", t("github.jobError"));
         } else {
           markStepComplete("github");
+          if (onSuccess) onSuccess();
         }
         finish();
       }

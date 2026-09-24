@@ -159,14 +159,14 @@ class InstallTest(unittest.TestCase):
         result = install_hooks.uninstall(self.home, ["claude", "codex"], remove_skills=True)
 
         for base in (".claude", ".codex"):
-            for name in ("kb", "kb-ingest", "kb-lint"):
+            for name in ("kb", "kb-ingest", "kb-lint", "kb-health"):
                 skill_path = self.home / base / "skills" / name / "SKILL.md"
                 self.assertFalse(skill_path.exists(), skill_path)
                 self.assertFalse(skill_path.parent.exists(), skill_path.parent)
 
         self.assertTrue(user_skill.exists())
         self.assertEqual(user_skill.read_text(encoding="utf-8"), "# not from the kit\n")
-        self.assertEqual(len(result["skills_removed"]), 6)
+        self.assertEqual(len(result["skills_removed"]), 8)
 
     def test_uninstall_without_remove_skills_leaves_skills_in_place(self):
         from kit.skills_install import install_skills

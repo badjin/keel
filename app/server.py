@@ -65,22 +65,49 @@ class KitState:
         return data
 
 
-def _record_ui_language(home: Path, ui_language: str) -> None:
-    """Merges `ui_language` into config.json, creating it if needed —
-    installing hooks before creating the wiki must still record the
-    page's language choice, or every hook's text stays English until the
-    wiki is created. Deliberately does not go through KitState.config(),
-    which now treats a wiki_path-less config as "no wiki yet"."""
+def _read_config_raw(home: Path) -> dict:
+    """The raw config.json dict, or `{}` if missing/corrupt. Shared by every
+    read-modify-write writer below — deliberately does not go through
+    KitState.config(), which now treats a wiki_path-less config as "no
+    wiki yet" (a writer may need to record a choice before the wiki
+    exists, e.g. installing hooks before creating the wiki)."""
     config_path = home / ".keel" / "config.json"
-    config_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         data = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
-        if not isinstance(data, dict):
-            data = {}
     except Exception:
         data = {}
-    data["ui_language"] = ui_language if ui_language in ("en", "ko") else "en"
+    return data if isinstance(data, dict) else {}
+
+
+def _merge_config(home: Path, updates: dict) -> None:
+    """Read-merge-write of `updates` into config.json, creating it if
+    needed, keeping every other key untouched. The one merge path every
+    kit-owned config writer shares (ui_language, watch_repos, ...) instead
+    of each hand-rolling its own read/write."""
+    config_path = home / ".keel" / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    data = _read_config_raw(home)
+    data.update(updates)
     config_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _record_ui_language(home: Path, ui_language: str) -> None:
+    _merge_config(home, {"ui_language": ui_language if ui_language in ("en", "ko") else "en"})
+
+
+def _record_watch_repo(home: Path, repo: str, branch: str, watch: bool, days: int, language: str, llm) -> None:
+    """Adds/replaces or removes `{repo, branch, days, language, llm}` in
+    config.json's `watch_repos` list, keyed by `repo` alone — pages are
+    rendered per repo (render_repo._resolve_slug), never per branch, so at
+    most one watch entry per repo can ever mean anything. Recording the
+    same repo again (even on a different branch) replaces its entry."""
+    data = _read_config_raw(home)
+    existing = data.get("watch_repos")
+    watch_repos = [w for w in existing if isinstance(w, dict)] if isinstance(existing, list) else []
+    watch_repos = [w for w in watch_repos if w.get("repo") != repo]
+    if watch:
+        watch_repos.append({"repo": repo, "branch": branch, "days": days, "language": language, "llm": llm})
+    _merge_config(home, {"watch_repos": watch_repos})
 
 
 def _read_json_body(handler: "Handler") -> dict:
@@ -179,6 +206,10 @@ def _run_history_item(state: KitState, item: dict, days: int, language: str, llm
     wiki_path = Path(config["wiki_path"])
     written = render_repo.render_repo(wiki_path, repo_name, branch, days, changes, language, summaries, source)
     log(kit_progress("pages_written", ui_lang, label=label, n=len(written)))
+
+    if kind == "github" and "watch" in item:
+        _record_watch_repo(state.home, repo_or_path, branch, bool(item.get("watch")), days, language, llm)
+
     return written
 
 

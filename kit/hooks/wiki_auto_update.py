@@ -53,18 +53,28 @@ def _git_top_level(cwd: str) -> str | None:
 def run() -> int:
     payload = _common.read_payload()
     kit_home = _common.kit_home()
+
+    # Read the transcript before any early return below, so the source CLI
+    # is known for the 30-day health-check rule even on a session that
+    # itself turns out too short/uninteresting to enqueue its own job.
+    transcript_path = payload.get("transcript_path", "")
+    if transcript_path:
+        msgs, source = _common.read_transcript_with_source(transcript_path)
+    else:
+        msgs, source = [], "claude"
+
+    try:
+        import _maintenance
+        _maintenance.check_health(kit_home, source)
+    except Exception:
+        pass
+
     config = _common.load_config(kit_home)
     if config is None:
         return 0
     wiki_path = config.get("wiki_path", "")
     if not wiki_path:
         return 0
-
-    transcript_path = payload.get("transcript_path", "")
-    if transcript_path:
-        msgs, source = _common.read_transcript_with_source(transcript_path)
-    else:
-        msgs, source = [], "claude"
 
     session_id = payload.get("session_id", "") or ""
 

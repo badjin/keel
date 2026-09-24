@@ -674,6 +674,16 @@ input[type="radio"], input[type="checkbox"], .due-slip input[type="range"] {
   font-family: var(--font-mono);
   margin-top: 8px;
 }
+.repo-row .watch-checkbox {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.repo-row .watch-checkbox[hidden] {
+  display: none;
+}
 .ledger {
   display: flex;
   flex-direction: column;

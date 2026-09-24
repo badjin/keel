@@ -132,8 +132,8 @@ Using Keel? Star <a href="https://github.com/badjin/keel" target="_blank" rel="n
 
 As you use the KB, orphan pages (pages nothing links to), broken links
 (a `[[link]]` pointing to a page that doesn't exist), and one-way links (A
-links to B but B doesn't link back to A) build up. These problems do not fix
-themselves.
+links to B but B doesn't link back to A) build up. The monthly health check
+(below) fixes clear cases of these automatically, about once a month.
 
 Every so often (after a batch of changes, or roughly weekly), from any
 folder tell Claude Code or Codex "run the KB lint" (or "run the wiki lint").
@@ -212,6 +212,45 @@ session ends.
   a session ends" checkbox on the Hooks tab and reinstall.
 - **Log** — `~/.keel/state/auto-update.log` shows why sessions were
   skipped and what was done.
+
+## GitHub merge watch
+
+On the GitHub tab, checking **"Update the KB when this branch gets merges"**
+under a repository's branch keeps that repository's pages current on their
+own.
+
+- **When it runs** — Keel has no server, so it checks for new merges when
+  you open a Claude Code or Codex session, at most once every 6 hours, and
+  refreshes that repository's pages in the background — not at the moment
+  of the merge.
+- **Requirements** — the Knowledge Base loader hook (`wiki-loader`) must be
+  installed; a private repository needs `gh auth login` on this computer.
+- **Uses quota** — if an AI summary was chosen for that repository, each
+  refresh runs the summary again and uses that CLI's usage quota.
+- **How to turn it off** — uncheck the box for that repository and branch
+  and run the GitHub step again.
+
+## Monthly KB health check
+
+About once a month, after a session ends, Keel runs the `kb-health` skill
+automatically in the background.
+
+- **Requirements** — needs the `wiki-auto-update` hook (SessionEnd)
+  installed (the same way merge watch needs `wiki-loader`, above).
+- **What it fixes** — the same four checks as `kb-lint` (broken links,
+  ambiguous links, orphan pages, one-way links), but it fixes what is safe
+  without asking: missing back-links, orphans linked from the root
+  `index.md` or the most related page, and broken links pointed at the page
+  they clearly meant.
+- **Report** — anything ambiguous is left alone and listed in a report at
+  `<KB path>/raw/health/<date>.md`.
+- **Never deletes** — it never deletes a page or a file.
+- **Run it now** — from any folder, tell Claude Code or Codex "wiki health"
+  (or "kb health") to run it on the spot instead of waiting for the monthly
+  run.
+- **Upgrading from 0.1.1** — the "wiki health" skill is not installed yet.
+  Run the Knowledge Base step again on the KB you already have (existing
+  pages are kept) to add it.
 
 ## Limitations
 

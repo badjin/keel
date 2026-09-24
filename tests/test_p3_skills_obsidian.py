@@ -20,7 +20,7 @@ class InstallSkillsTest(unittest.TestCase):
             install_skills(home, wiki_path, ["claude", "codex"])
 
             for base in (".claude", ".codex"):
-                for name in ("kb", "kb-ingest", "kb-lint"):
+                for name in ("kb", "kb-ingest", "kb-lint", "kb-health"):
                     p = home / base / "skills" / name / "SKILL.md"
                     self.assertTrue(p.exists(), p)
                     text = p.read_text(encoding="utf-8")
@@ -83,7 +83,7 @@ class InstallSkillsWrittenListTest(unittest.TestCase):
             expected = {
                 home / base / "skills" / name / "SKILL.md"
                 for base in (".claude", ".codex")
-                for name in ("kb", "kb-ingest", "kb-lint")
+                for name in ("kb", "kb-ingest", "kb-lint", "kb-health")
             }
             self.assertEqual(set(written), expected)
 
@@ -98,9 +98,9 @@ class RemoveSkillsTest(unittest.TestCase):
             install_skills(home, wiki_path, ["claude", "codex"])
 
             removed = remove_skills(home, ["claude", "codex"])
-            self.assertEqual(len(removed), 6)
+            self.assertEqual(len(removed), 8)
             for base in (".claude", ".codex"):
-                for name in ("kb", "kb-ingest", "kb-lint"):
+                for name in ("kb", "kb-ingest", "kb-lint", "kb-health"):
                     skill_dir = home / base / "skills" / name
                     self.assertFalse(skill_dir.exists(), skill_dir)
 
@@ -122,7 +122,7 @@ class RemoveSkillsTest(unittest.TestCase):
 
 class SkillSourceFrontMatterTest(unittest.TestCase):
     def test_kit_skill_sources_have_frontmatter_then_marker(self):
-        for name in ("kb", "kb-ingest", "kb-lint"):
+        for name in ("kb", "kb-ingest", "kb-lint", "kb-health"):
             path = REPO_ROOT / "kit" / "skills" / name / "SKILL.md"
             lines = path.read_text(encoding="utf-8").splitlines()
             self.assertEqual(lines[0], "---")

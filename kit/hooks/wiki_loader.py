@@ -27,6 +27,12 @@ def run() -> int:
     if config is None:
         return 0
 
+    try:
+        import _maintenance
+        _maintenance.check()
+    except Exception:
+        pass
+
     wiki_path = config.get("wiki_path", "")
     language = _common.ui_lang(config)
 

@@ -1,7 +1,7 @@
 ---
 name: kb-lint
 description: Health-check the knowledge base at {{WIKI_PATH}} for orphan pages and broken links.
-  Use for a wiki lint, kb lint, wiki health check, kb health check, 위키 린트, 위키 점검, 지식 베이스 린트, 지식 베이스 점검, an orphan, or a broken link.
+  Use for a wiki lint, kb lint, 위키 린트, 위키 점검, 지식 베이스 린트, 지식 베이스 점검, an orphan, or a broken link.
 ---
 <!-- keel -->
 

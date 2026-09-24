@@ -239,6 +239,13 @@
           <input type="text" id="repo-search" class="repo-search" placeholder="Search by name" data-i18n-attr='{"placeholder":"github.repoSearchPlaceholder"}'>
         </label>
         <div id="repo-list" data-section="repositories"></div>
+        <p class="field-note" data-i18n="github.watchExplain">
+          Keel has no server, so it checks for new merges when you open a Claude/Codex session
+          (at most every 6 hours) and refreshes that repository's pages in the background — not
+          at the moment of the merge. It needs the Knowledge Base loader hook installed; private
+          repositories need <code>gh auth login</code> on this computer; if an AI summary was
+          chosen, each refresh runs the summary again and uses that CLI's quota.
+        </p>
 
         <h3 data-i18n="github.localReposHeading">Local repositories</h3>
         <p class="field-note" data-i18n="github.localReposHint">If you build the knowledge base in folder-picker mode on the Knowledge Base tab, git folders inside it appear here.</p>
@@ -279,8 +286,8 @@
         </div>
         <p class="inline-error" id="finish-error"></p>
         <ul class="summary-list" id="finish-summary"></ul>
-        <p class="field-note" data-i18n="finish.lintNote">Orphan pages and broken links do not fix themselves. Every so often, tell the
-          agent "run the kb lint" (the kb-lint skill).</p>
+        <p class="field-note" data-i18n="finish.lintNote">A health check runs about once a month after a session ends and fixes
+          clear cases of orphan pages and broken links on its own — say "wiki health" to run it now instead of waiting.</p>
 
         <h3 id="obsidian-section">Obsidian</h3>
         <div id="obsidian-found">

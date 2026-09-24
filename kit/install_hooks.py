@@ -17,6 +17,21 @@ from .errors import KitValueError
 
 KIT_MARKER = "/.keel/hooks/"
 
+# Modules the merge-watch refresh job (run by _auto_update_worker.py, long
+# after this install and possibly after the unzipped kit/ folder is gone)
+# needs to import as `kit.<name>`. Copied into ~/.keel/lib/kit/ on every
+# install so a refresh keeps working independent of where the kit was
+# unpacked from.
+WORKER_LIB_MODULES = [
+    "__init__.py",
+    "errors.py",
+    "history.py",
+    "github.py",
+    "wiki_init.py",
+    "render_repo.py",
+    "llm_pass.py",
+]
+
 
 def load_catalogue(repo_root: Path) -> list[dict]:
     path = Path(repo_root) / "kit" / "catalogue.json"
@@ -352,6 +367,14 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
         shutil.copy(src_file, hooks_dir / src_file.name)
     for src_file in src_hooks_dir.glob("*.sh"):
         shutil.copy(src_file, hooks_dir / src_file.name)
+
+    lib_kit_dir = kit_home / "lib" / "kit"
+    lib_kit_dir.mkdir(parents=True, exist_ok=True)
+    src_kit_dir = repo_root / "kit"
+    for name in WORKER_LIB_MODULES:
+        src_file = src_kit_dir / name
+        if src_file.exists():
+            shutil.copy(src_file, lib_kit_dir / name)
 
     config_path = kit_home / "config.json"
     config = _read_json(config_path, {})

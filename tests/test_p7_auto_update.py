@@ -134,7 +134,7 @@ class AutoUpdateTestBase(unittest.TestCase):
         self.kit_home = Path(self.tmp.name) / "kit_home"
         self.hooks_dir = self.kit_home / "hooks"
         self.hooks_dir.mkdir(parents=True)
-        for name in ("_common.py", "wiki_auto_update.py", "_auto_update_worker.py"):
+        for name in ("_common.py", "_maintenance.py", "wiki_auto_update.py", "_auto_update_worker.py"):
             shutil.copy(HOOKS_SRC / name, self.hooks_dir / name)
 
         self.bin_dir = Path(self.tmp.name) / "bin"

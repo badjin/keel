@@ -5,7 +5,7 @@ from pathlib import Path
 KIT_MARKER = "<!-- keel -->"
 LEGACY_MARKER = "<!-- llm-wiki-kit -->"
 SKILLS_DIR = Path(__file__).resolve().parent / "skills"
-SKILL_NAMES = ("kb", "kb-ingest", "kb-lint")
+SKILL_NAMES = ("kb", "kb-ingest", "kb-lint", "kb-health")
 LEGACY_SKILL_NAMES = ("wiki", "wiki-ingest", "wiki-lint")
 
 TARGET_BASE = {"claude": ".claude", "codex": ".codex", "grok": ".grok"}

@@ -56,7 +56,7 @@ def build_prompts(repo: str, changes: list, language: str) -> dict:
     }
 
 
-def run_cli(cli: str, prompt: str, timeout: int = 120) -> Optional[str]:
+def run_cli(cli: str, prompt: str, timeout: int = 120, env: Optional[dict] = None) -> Optional[str]:
     if cli == "claude":
         args = ["claude", "-p", prompt]
     elif cli == "codex":
@@ -64,7 +64,7 @@ def run_cli(cli: str, prompt: str, timeout: int = 120) -> Optional[str]:
     else:
         return None
 
-    env = {**os.environ, "LLM_WIKI_KIT_SUPPRESS": "1"}
+    env = {**(env if env is not None else os.environ), "LLM_WIKI_KIT_SUPPRESS": "1"}
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         try:
@@ -87,27 +87,41 @@ def run_cli(cli: str, prompt: str, timeout: int = 120) -> Optional[str]:
     return text or None
 
 
-def summarize(cli: str, prompts: dict, runner: Callable = run_cli, progress: Optional[Callable] = None) -> dict:
+def summarize(
+    cli: str,
+    prompts: dict,
+    runner: Callable = run_cli,
+    progress: Optional[Callable] = None,
+    env: Optional[dict] = None,
+) -> dict:
     def _report(msg: str) -> None:
         if progress:
             progress(msg)
 
+    # `env` is only forwarded when the caller supplies one (the worker's
+    # refresh job, running in _child_env()) — omitting the kwarg entirely
+    # otherwise keeps a bare two-arg runner (e.g. a test fake) working.
+    def _run(prompt: str):
+        if env is not None:
+            return runner(cli, prompt, env=env)
+        return runner(cli, prompt)
+
     result: dict = {"months": {}, "areas": {}}
 
     _report("index")
-    text = runner(cli, prompts["index"])
+    text = _run(prompts["index"])
     if text:
         result["index"] = text
 
     for ym, prompt in prompts.get("months", {}).items():
         _report(ym)
-        text = runner(cli, prompt)
+        text = _run(prompt)
         if text:
             result["months"][ym] = text
 
     for area, prompt in prompts.get("areas", {}).items():
         _report(area)
-        text = runner(cli, prompt)
+        text = _run(prompt)
         if text:
             result["areas"][area] = text
 

@@ -16,6 +16,7 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -91,6 +92,60 @@ WORKER_PROMPT_TEMPLATE_KO = (
 )
 
 WORKER_PROMPTS = {"en": WORKER_PROMPT_TEMPLATE, "ko": WORKER_PROMPT_TEMPLATE_KO}
+
+# Self-contained monthly health-check prompt: it carries the kb-lint/
+# kb-health procedure inline instead of naming the skill, since this
+# background `claude -p --setting-sources project,local` run may not load
+# user-installed skills. Always non-interactive — everything ambiguous is
+# left alone and written to the report instead of being asked about.
+HEALTH_PROMPT_TEMPLATE = (
+    "This is an automatic monthly knowledge-base health check. It runs "
+    "unattended: never ask the user anything — decide and act on your own, "
+    "and put anything ambiguous in the report described below instead of "
+    "a question.\n"
+    "1. List every .md file under the wiki root (skip .git, .obsidian, and raw/).\n"
+    "2. Resolve every [[target]] or [[target|label]] link the Obsidian way.\n"
+    "3. Find: broken links (resolve to no page), ambiguous links (resolve "
+    "to more than one page), orphan pages under wiki/, repos/, or local/ "
+    "that nothing links to and that the root index.md does not list, and "
+    "one-way links (A links to B under wiki/ but B has no link back).\n"
+    "4. Fix without asking: add the missing back-link for each one-way "
+    "link; link each orphan from the root index.md or the most related "
+    "wiki/ page; point each broken link at the one existing page it "
+    "clearly meant. Only ever edit index.md or pages under wiki/ — never "
+    "repos/ or local/.\n"
+    "5. Leave anything ambiguous exactly as it is (do not touch the "
+    "[[...]] brackets) and list it in the report instead.\n"
+    "6. Write the report to raw/health/<today's date, YYYY-MM-DD>.md — "
+    "the only file this run may write anywhere under raw/. Never write "
+    "anywhere else under raw/, and never delete a page or a file.\n"
+    "When done, answer exactly: APPLIED: <files>. If there was nothing to "
+    "check or fix, answer exactly: SKIP: <reason>."
+)
+
+HEALTH_PROMPT_TEMPLATE_KO = (
+    "이것은 매달 자동으로 실행되는 지식 베이스 헬스 체크입니다. 사람 없이 실행되므로 "
+    "사용자에게 아무것도 묻지 마세요 — 스스로 판단하고 처리하고, 애매한 것은 질문 대신 "
+    "아래 설명한 보고서에 적으세요.\n"
+    "1. 위키 루트 아래 모든 .md 파일을 나열하세요(.git, .obsidian, raw/ 는 건너뜁니다).\n"
+    "2. 모든 [[target]] 또는 [[target|label]] 링크를 Obsidian 방식으로 해석하세요.\n"
+    "3. 다음을 찾으세요: 깨진 링크(어떤 페이지로도 연결되지 않음), 애매한 링크(둘 이상의 "
+    "페이지로 연결됨), wiki/·repos/·local/ 아래에서 아무도 링크하지 않고 루트 index.md 에도 "
+    "없는 고아 페이지, 그리고 한쪽 링크(A가 wiki/ 아래 B를 링크하지만 B는 A로 되돌아오는 "
+    "링크가 없음).\n"
+    "4. 묻지 않고 고치세요: 한쪽 링크마다 빠진 되돌림 링크를 추가하고, 각 고아 페이지를 "
+    "루트 index.md 나 가장 관련 있는 wiki/ 페이지에서 링크하고, 각 깨진 링크는 분명히 "
+    "의도한 그 페이지로 고치세요. index.md 나 wiki/ 아래 페이지만 고치세요 — repos/ 나 "
+    "local/ 은 절대 건드리지 마세요.\n"
+    "5. 애매한 것은 그대로 두고([[...]] 괄호를 건드리지 말고) 대신 보고서에 적으세요.\n"
+    "6. 보고서를 raw/health/<오늘 날짜, YYYY-MM-DD>.md 에 쓰세요 — 이번 실행이 raw/ "
+    "아래에 쓸 수 있는 유일한 파일입니다. raw/ 아래 다른 곳에는 절대 쓰지 말고, 페이지나 "
+    "파일을 절대 삭제하지 마세요.\n"
+    "끝나면 정확히 이렇게 답하세요: APPLIED: <files>. 확인하거나 고칠 것이 없었다면 "
+    "정확히 이렇게 답하세요: SKIP: <이유>."
+)
+
+HEALTH_PROMPTS = {"en": HEALTH_PROMPT_TEMPLATE, "ko": HEALTH_PROMPT_TEMPLATE_KO}
 
 
 def _worker_prompt_lang(kit_home: Path) -> str:
@@ -214,12 +269,290 @@ def _child_env() -> dict:
     return env
 
 
+def _maintenance_state_path(kit_home: Path) -> Path:
+    return kit_home / "state" / "maintenance.json"
+
+
+def _load_maintenance_state(kit_home: Path) -> dict:
+    try:
+        data = json.loads(_maintenance_state_path(kit_home).read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    data.setdefault("last_merge_check", "1970-01-01T00:00:00+00:00")
+    # A state missing `last_health` (an older file written before it
+    # existed, or one saved by a path that never set it) gets a fresh "now"
+    # baseline here — never left absent — so a save on this state can never
+    # make the health check due immediately.
+    data.setdefault("last_health", datetime.now(timezone.utc).isoformat())
+    if not isinstance(data.get("shas"), dict):
+        data["shas"] = {}
+    return data
+
+
+def _save_maintenance_state(kit_home: Path, state: dict) -> None:
+    """Writes via a temp file + os.replace — the hook's own create of a
+    missing maintenance.json uses O_CREAT | O_EXCL instead (see
+    _maintenance.py's `_create_state_if_missing`), so a crash mid-write
+    here never leaves a truncated/corrupt file for that separate path to
+    stumble on."""
+    state_path = _maintenance_state_path(kit_home)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = state_path.with_suffix(state_path.suffix + ".tmp")
+    try:
+        tmp_path.write_text(json.dumps(state), encoding="utf-8")
+        os.replace(tmp_path, state_path)
+    except OSError:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+
+
+def _refresh_key(repo: str, branch: str) -> str:
+    return f"{repo}@{branch}"
+
+
+def _cached_local_head(kit_home: Path, repo: str, branch: str) -> str | None:
+    """The branch head already recorded in the cached bare clone at
+    <kit_home>/cache/<owner>/<name>.git, or None if that cache does not
+    exist or the branch ref cannot be resolved. Pure local git plumbing —
+    no network call needed."""
+    if "/" not in repo:
+        return None
+    owner, name = repo.split("/", 1)
+    git_dir = kit_home / "cache" / owner / f"{name}.git"
+    if not git_dir.exists():
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "--git-dir", str(git_dir), "rev-parse", f"refs/heads/{branch}"],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    sha = result.stdout.strip()
+    return sha or None
+
+
+REFRESH_FETCH_TIMEOUT_SECONDS = 300
+
+
+def _remote_head(repo: str, branch: str, token: str | None) -> str | None:
+    """The live GitHub head for `repo`@`branch`."""
+    from kit import github  # local: only importable once ~/.keel/lib is on sys.path
+    return github.remote_head(repo, branch, token)
+
+
+def _fetch_and_render(kit_home: Path, wiki_path: Path, entry: dict, token: str | None) -> str | None:
+    """Fetches the repo, collects its landed changes, optionally summarizes
+    them, renders the wiki pages, and returns the sha to record as this
+    repo@branch's new baseline."""
+    from kit import github, history, llm_pass, render_repo
+
+    repo = entry.get("repo", "")
+    branch = entry.get("branch", "")
+    days = entry.get("days", 90)
+    language = entry.get("language", "ko")
+    llm = entry.get("llm")
+
+    git_dir = github.fetch_repo(repo, branch, kit_home / "cache", token, timeout=REFRESH_FETCH_TIMEOUT_SECONDS)
+    changes = history.collect_changes(git_dir, branch, days)
+
+    summaries = None
+    if llm and shutil.which(llm):
+        prompts = llm_pass.build_prompts(repo, changes, language)
+        summaries = llm_pass.summarize(llm, prompts, env=_child_env())
+
+    render_repo.render_repo(
+        wiki_path, repo, branch, days, changes, language, summaries,
+        f"https://github.com/{repo}",
+    )
+    return _cached_local_head(kit_home, repo, branch)
+
+
+def _save_last_merge_check(kit_home: Path) -> None:
+    state = _load_maintenance_state(kit_home)
+    state["last_merge_check"] = datetime.now(timezone.utc).isoformat()
+    _save_maintenance_state(kit_home, state)
+
+
+def process_refresh(kit_home: Path) -> str:
+    """Runs the merge-watch refresh: for every repo in config.json's
+    `watch_repos`, re-renders its wiki pages only when its branch head has
+    moved since the last refresh. Needs no CLI and never touches the
+    session ledger (see `process_one`). Records `last_merge_check` on every
+    path, including the early-return skips below, so the 6-hour rule in
+    `_maintenance.check` always measures from the last time this actually
+    ran."""
+    config = _common.load_config(kit_home)
+    if not config:
+        _save_last_merge_check(kit_home)
+        return "skip no-config"
+    watch_repos = config.get("watch_repos") or []
+    if not watch_repos:
+        _save_last_merge_check(kit_home)
+        return "skip no-watch"
+    wiki_path_str = config.get("wiki_path", "")
+    if not wiki_path_str:
+        _save_last_merge_check(kit_home)
+        return "skip no-wiki"
+    wiki_path = Path(wiki_path_str)
+
+    lib_dir = str(kit_home / "lib")
+    if lib_dir not in sys.path:
+        sys.path.insert(0, lib_dir)
+
+    from kit import github  # local: only importable once ~/.keel/lib is on sys.path
+    token = github.gh_cli_token()
+
+    state = _load_maintenance_state(kit_home)
+    shas = state["shas"]
+
+    for entry in watch_repos:
+        repo = entry.get("repo", "")
+        branch = entry.get("branch", "")
+        if not repo or not branch:
+            continue
+        key = _refresh_key(repo, branch)
+        try:
+            if key not in shas:
+                baseline = _cached_local_head(kit_home, repo, branch)
+                if baseline is not None:
+                    shas[key] = baseline
+                    _common.log(kit_home, f"refresh repo={key} baseline-only")
+                    continue
+                new_sha = _fetch_and_render(kit_home, wiki_path, entry, token)
+                if new_sha:
+                    shas[key] = new_sha
+                _common.log(kit_home, f"refresh repo={key} rendered-new")
+                continue
+
+            head = _remote_head(repo, branch, token)
+            if head is not None and head == shas[key]:
+                _common.log(kit_home, f"refresh repo={key} up-to-date")
+                continue
+
+            new_sha = _fetch_and_render(kit_home, wiki_path, entry, token)
+            if new_sha:
+                shas[key] = new_sha
+            elif head:
+                shas[key] = head
+            _common.log(kit_home, f"refresh repo={key} rendered")
+        except subprocess.TimeoutExpired:
+            _common.log(kit_home, f"refresh repo={key} timeout")
+        except Exception as exc:  # noqa: BLE001 - one repo's failure must not stop the others
+            _common.log(kit_home, f"refresh repo={key} error: {_common.redact(str(exc))[:200]}")
+
+    state["last_merge_check"] = datetime.now(timezone.utc).isoformat()
+    _save_maintenance_state(kit_home, state)
+    return "refresh"
+
+
+def _fallback_cli() -> tuple[str, str] | tuple[None, None]:
+    """The first of `claude`, `codex` found on PATH, for a health job whose
+    own `cli` (the session's source CLI at enqueue time) is no longer
+    available."""
+    for candidate in ("claude", "codex"):
+        found = shutil.which(candidate)
+        if found:
+            return candidate, found
+    return None, None
+
+
+def _mark_last_health(kit_home: Path) -> None:
+    state = _load_maintenance_state(kit_home)
+    state["last_health"] = datetime.now(timezone.utc).isoformat()
+    _save_maintenance_state(kit_home, state)
+
+
+def process_health(kit_home: Path, job: dict) -> str:
+    """Runs the monthly health check. Never touches the session ledger, and
+    sets `last_health` in maintenance.json on every attempt — success,
+    skip, or error — so the 30-day rule always measures from the last time
+    this actually ran, not from the last time it happened to succeed."""
+    cli = job.get("cli") or ""
+    cli_exe = shutil.which(cli) if cli else None
+    if not cli_exe:
+        cli, cli_exe = _fallback_cli()
+
+    if not cli_exe:
+        _common.log(kit_home, "health skip no-cli")
+        _mark_last_health(kit_home)
+        return "skip no-cli"
+
+    config = _common.load_config(kit_home)
+    wiki_path_str = config.get("wiki_path", "") if config else ""
+    if not wiki_path_str:
+        _common.log(kit_home, "health skip no-wiki")
+        _mark_last_health(kit_home)
+        return "skip no-wiki"
+    wiki_path = Path(wiki_path_str)
+
+    lang = _worker_prompt_lang(kit_home)
+    stdin_text = HEALTH_PROMPTS[lang]
+    if cli == "codex":
+        cmd = build_codex_cmd(cli_exe, wiki_path)
+    else:
+        cmd = build_claude_cmd(cli_exe)
+
+    env = _child_env()
+    timeout = float(os.environ.get("LLM_WIKI_KIT_AUTO_UPDATE_TIMEOUT", DEFAULT_TIMEOUT_SECONDS))
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(wiki_path),
+            env=env,
+            input=stdin_text,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        _common.log(kit_home, "health timeout")
+        _mark_last_health(kit_home)
+        return "timeout"
+    except OSError:
+        _common.log(kit_home, "health error")
+        _mark_last_health(kit_home)
+        return "error"
+
+    if proc.returncode != 0:
+        stderr_line = _common.redact(_last_nonempty_line(proc.stderr))[:200]
+        _common.log(kit_home, f"health error: {stderr_line}")
+        _mark_last_health(kit_home)
+        return "error"
+
+    outcome = _outcome_for(proc.stdout)
+    _common.log(kit_home, f"health {outcome}")
+    _mark_last_health(kit_home)
+    return outcome
+
+
 def process_one(job_path: Path, kit_home: Path) -> str:
     try:
         job = json.loads(job_path.read_text(encoding="utf-8"))
     except Exception:
         _common.log(kit_home, f"job={job_path.name} error: unreadable job file")
         return "error"
+
+    kind = job.get("kind", "session")
+    if kind == "refresh":
+        try:
+            return process_refresh(kit_home)
+        except Exception as exc:  # noqa: BLE001 - a bad refresh must not kill the drain
+            _common.log(kit_home, f"refresh error: {_common.redact(str(exc))[:200]}")
+            return "error"
+    if kind == "health":
+        try:
+            return process_health(kit_home, job)
+        except Exception as exc:  # noqa: BLE001 - a bad health run must not kill the drain
+            _common.log(kit_home, f"health error: {_common.redact(str(exc))[:200]}")
+            return "error"
 
     session_id = job.get("session_id", "")
 

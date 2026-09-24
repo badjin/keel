@@ -99,23 +99,51 @@ def _token_b64(token: str) -> str:
     return base64.b64encode(f"x-access-token:{token}".encode("utf-8")).decode("ascii")
 
 
-def _redact(text: str, token: str) -> str:
+def _redact(text: str, token: Optional[str]) -> str:
+    if not token:
+        return text
     redacted = text.replace(token, "***")
     redacted = redacted.replace(_token_b64(token), "***")
     return redacted
 
 
-def fetch_repo(full_name: str, branch: str, cache_dir: Path, token: str) -> Path:
+def _auth_env(token: Optional[str]) -> dict:
+    env = dict(os.environ)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    if token:
+        env["GIT_CONFIG_COUNT"] = "1"
+        env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraheader"
+        env["GIT_CONFIG_VALUE_0"] = f"AUTHORIZATION: basic {_token_b64(token)}"
+    return env
+
+
+def remote_head(full_name: str, branch: str, token: Optional[str] = None) -> Optional[str]:
+    """The sha `branch` currently points to on GitHub, via `git ls-remote` —
+    no local clone needed. Returns None (never raises) on any failure
+    (including a hang past 60 seconds), since callers use it only to decide
+    whether a refresh is needed."""
+    env = _auth_env(token)
+    args = ["git", "ls-remote", f"https://github.com/{full_name}.git", f"refs/heads/{branch}"]
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, env=env, check=False, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    line = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+    sha = line.split("\t", 1)[0].strip() if line else ""
+    return sha or None
+
+
+def fetch_repo(
+    full_name: str, branch: str, cache_dir: Path, token: Optional[str] = None, timeout: Optional[int] = None
+) -> Path:
     cache_dir = Path(cache_dir)
     owner, name = full_name.split("/", 1)
     dest = cache_dir / owner / f"{name}.git"
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    env = dict(os.environ)
-    env["GIT_TERMINAL_PROMPT"] = "0"
-    env["GIT_CONFIG_COUNT"] = "1"
-    env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraheader"
-    env["GIT_CONFIG_VALUE_0"] = f"AUTHORIZATION: basic {_token_b64(token)}"
+    env = _auth_env(token)
 
     if dest.exists():
         args = [
@@ -141,7 +169,7 @@ def fetch_repo(full_name: str, branch: str, cache_dir: Path, token: str) -> Path
             str(dest),
         ]
 
-    result = subprocess.run(args, capture_output=True, text=True, env=env, check=False)
+    result = subprocess.run(args, capture_output=True, text=True, env=env, check=False, timeout=timeout)
     if result.returncode != 0:
         stderr = _redact(result.stderr.strip(), token)
         raise KitRuntimeError("git_fetch_failed", rc=result.returncode, stderr=stderr)

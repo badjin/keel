@@ -18,7 +18,7 @@ class HooksTest(unittest.TestCase):
         self.kit_home = Path(self.tmp.name) / "kit_home"
         self.hooks_dir = self.kit_home / "hooks"
         self.hooks_dir.mkdir(parents=True)
-        for name in ("_common.py", "wiki_loader.py", "no_speculation.py"):
+        for name in ("_common.py", "_maintenance.py", "wiki_loader.py", "no_speculation.py"):
             shutil.copy(HOOKS_SRC / name, self.hooks_dir / name)
 
     def run_hook(self, script_name: str, payload: dict | str):
