@@ -7,6 +7,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import time
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -608,12 +609,42 @@ def make_server(home, port: int = 0):
     return server, token
 
 
+def _detach(args) -> int:
+    child_argv = [a for a in sys.argv[1:] if a != "--detach"]
+    log_path = Path(args.log)
+    with open(log_path, "w", encoding="utf-8") as log:
+        proc = subprocess.Popen(
+            [sys.executable, "-u", str(Path(__file__).resolve()), *child_argv],
+            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    Path(args.pid_file).write_text(str(proc.pid), encoding="utf-8")
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+        for line in text.splitlines():
+            if "http://127.0.0.1:" in line:
+                print(line)
+                return 0
+        if proc.poll() is not None:
+            break
+        time.sleep(0.2)
+    print(log_path.read_text(encoding="utf-8", errors="replace")[-2000:])
+    return 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--home", default=str(Path.home()))
     parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--detach", action="store_true")
+    parser.add_argument("--log", default="/tmp/keel-install.log")
+    parser.add_argument("--pid-file", default="/tmp/keel-server.pid")
     args = parser.parse_args()
+
+    if args.detach:
+        sys.exit(_detach(args))
 
     server, token = make_server(Path(args.home), args.port)
     port = server.server_address[1]

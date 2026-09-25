@@ -98,17 +98,13 @@ permitted` — that is the sandbox, not a bug in the kit.
 
 ### Start it
 
-From the unzipped kit folder, start the server as a background process,
-capture its PID, and send its output to a log file — run this as a single
-command (a split into two separate tool calls loses `$!` between them):
+From the unzipped kit folder, start the server:
 
 ```
-python3 -u app/server.py > /tmp/keel-install.log 2>&1 & echo $! > /tmp/keel-server.pid
+python3 app/server.py --detach
 ```
 
-`-u` (unbuffered) matters here — the log is being read from a redirected
-file, not a terminal. You will use the PID file in step 6 to stop the
-server.
+It starts the server in its own background session (so it keeps running after this command returns, whichever agent runs it), writes its output to `/tmp/keel-install.log` and its PID to `/tmp/keel-server.pid` (step 6 uses it), waits up to 10 seconds for the server to print its address, prints that line and exits. If it exits with a non-zero status, startup failed — it prints the end of the log; read it before retrying.
 
 The server opens the user's default browser itself as soon as it starts —
 that is expected, do not treat it as a problem and do not open the URL
@@ -117,17 +113,6 @@ yourself.
 If a previous run left a result file behind, the server moves it aside at
 startup (`install-result.json` → `install-result.prev.json`) so step 4 does
 not mistake a stale result for this run's.
-
-Then read the URL the server printed — wait for the line with a short
-bounded loop (up to ~10 s total) instead of a single fixed `sleep`:
-
-```
-for i in $(seq 20); do grep -qE '열기:|Open:' /tmp/keel-install.log && break; sleep 0.5; done
-grep -E '열기:|Open:' /tmp/keel-install.log
-```
-
-If the loop finishes without the line ever appearing, treat startup as
-failed.
 
 The line looks like `Open / 열기: http://127.0.0.1:<port>/?t=<token>`. The URL
 after that label is what you hand to the user — do not open it yourself,
@@ -194,7 +179,7 @@ cat ~/.keel/install-result.json
 - `wiki_path` — confirm `<wiki_path>/index.md` exists.
 - `hooks` — report which hook ids were installed for `claude` and for
   `codex` (per the file's contents; do not assume both were chosen).
-- `skills` — report which KB skills were installed, out of `kb`, `kb-ingest`, `kb-lint`.
+- `skills` — report which KB skills were installed, out of `kb`, `kb-ingest`, `kb-lint`, `kb-health`.
 - `repos` — report which repos (if any) got a generated index under
   `<wiki_path>/repos/`.
 

@@ -3,16 +3,70 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
+import re
 import shutil
+import signal
+import subprocess
+import sys
 import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
 from unittest import mock
+from urllib.request import urlopen
 
 import app.server as server_mod
 from app.server import make_server
+
+
+class DetachTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        self.pid_file = root / "pid"
+        self.result = subprocess.run(
+            [sys.executable, "app/server.py", "--detach", "--no-browser",
+             "--home", str(root), "--log", str(root / "log"),
+             "--pid-file", str(self.pid_file)],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True, text=True, timeout=20,
+        )
+
+    def tearDown(self):
+        if not self.pid_file.exists():
+            return
+        pid = int(self.pid_file.read_text(encoding="utf-8"))
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        self.fail(f"detached server PID {pid} did not exit")
+
+    def test_detach_prints_url_and_exits_zero(self):
+        self.assertEqual(self.result.returncode, 0, self.result.stderr)
+        self.assertRegex(self.result.stdout, r"http://127\.0\.0\.1:\d+/\?t=")
+
+    def test_detached_pid_is_alive_in_new_session(self):
+        self.assertEqual(self.result.returncode, 0, self.result.stderr)
+        pid = int(self.pid_file.read_text(encoding="utf-8"))
+        os.kill(pid, 0)
+        self.assertNotEqual(os.getsid(pid), os.getsid(0))
+
+    def test_detached_server_responds(self):
+        self.assertEqual(self.result.returncode, 0, self.result.stderr)
+        port = int(re.search(r"http://127\.0\.0\.1:(\d+)/\?t=", self.result.stdout).group(1))
+        with urlopen(f"http://127.0.0.1:{port}/", timeout=5) as response:
+            self.assertEqual(response.status, 200)
 
 
 def _request(port, path, method="GET", token=None, host=None, body=None, lang=None):

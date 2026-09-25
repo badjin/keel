@@ -4,6 +4,7 @@ import base64
 import json
 import os
 import re
+import ssl
 import subprocess
 import urllib.error
 import urllib.request
@@ -16,12 +17,25 @@ API_ROOT = "https://api.github.com"
 USER_AGENT = "keel"
 
 _LINK_NEXT_RE = re.compile(r'<([^>]+)>;\s*rel="next"')
+_SSL_CONTEXT = None
+
+
+def _ssl_context(paths=None, fallback: str = "/etc/ssl/cert.pem") -> ssl.SSLContext:
+    paths = paths if paths is not None else ssl.get_default_verify_paths()
+    if paths.cafile or paths.capath:
+        return ssl.create_default_context()
+    if os.path.isfile(fallback):
+        return ssl.create_default_context(cafile=fallback)
+    return ssl.create_default_context()
 
 
 def _default_opener(url, headers):
+    global _SSL_CONTEXT
+    if _SSL_CONTEXT is None:
+        _SSL_CONTEXT = _ssl_context()
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=_SSL_CONTEXT) as resp:
             return resp.status, dict(resp.headers), resp.read()
     except urllib.error.HTTPError as exc:
         return exc.code, dict(exc.headers or {}), exc.read()

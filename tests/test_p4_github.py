@@ -3,10 +3,12 @@ from __future__ import annotations
 import base64
 import json
 import shutil
+import ssl
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import kit.github as github_mod
@@ -81,6 +83,31 @@ class GitHubClientTest(unittest.TestCase):
         opener = FakeOpener(pages=[], single={"https://api.github.com/repos/acme/a": repo})
         gh = GitHub("tok", opener=opener)
         self.assertEqual(gh.get_repo("acme/a"), repo)
+
+
+class SslContextTest(unittest.TestCase):
+    def test_existing_default_cafile_does_not_load_empty_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fallback = Path(tmp) / "empty.pem"
+            fallback.touch()
+            paths = SimpleNamespace(cafile="/default/ca.pem", capath=None)
+            context = github_mod._ssl_context(paths=paths, fallback=str(fallback))
+        self.assertIsInstance(context, ssl.SSLContext)
+
+    @unittest.skipUnless(Path("/etc/ssl/cert.pem").is_file(), "system CA bundle unavailable")
+    def test_missing_default_paths_loads_fallback_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fallback = Path(tmp) / "cert.pem"
+            shutil.copyfile("/etc/ssl/cert.pem", fallback)
+            paths = SimpleNamespace(cafile=None, capath=None)
+            context = github_mod._ssl_context(paths=paths, fallback=str(fallback))
+        self.assertGreater(context.cert_store_stats()["x509_ca"], 0)
+
+    def test_missing_fallback_uses_default_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = SimpleNamespace(cafile=None, capath=None)
+            context = github_mod._ssl_context(paths=paths, fallback=str(Path(tmp) / "missing.pem"))
+        self.assertIsInstance(context, ssl.SSLContext)
 
 
 class ServerDefaultBranchFallbackTest(unittest.TestCase):
@@ -246,7 +273,7 @@ class DefaultOpenerTimeoutTest(unittest.TestCase):
             def __exit__(self, *exc):
                 return False
 
-        def fake_urlopen(req, timeout=None):
+        def fake_urlopen(req, timeout=None, context=None):
             recorded["timeout"] = timeout
             return FakeResp()
 
