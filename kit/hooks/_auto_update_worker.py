@@ -3,7 +3,8 @@
 
 Takes an flock-based lock on a shared lock file, then drains every pending
 job file in <kit>/state/auto-update/ (oldest first), running `claude -p` or
-`codex exec` against each job's wiki with LLM_WIKI_KIT_NESTED=1 so that
+`codex exec` against a temporary copy of each job's wiki (see _wiki_guard)
+with LLM_WIKI_KIT_NESTED=1 so that
 run's own hook firings are no-ops (see _common.is_nested). A dead process's
 lock file never blocks the next worker: the OS drops the flock when the
 process that held it exits, regardless of what the file's contents say.
@@ -21,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common
+import _wiki_guard
 
 DEFAULT_TIMEOUT_SECONDS = 600
 
@@ -53,8 +55,18 @@ WORKER_PROMPT_TEMPLATE = (
     "this wiki or not), or when the content matches a topic already "
     "covered in the root index.md.\n"
     "Search existing pages first for one that already covers the topic. "
-    "If one does, update it in place; otherwise create wiki/<topic>.md "
-    "with a '## Last Updated: <today>' line. Add [[wiki/<name>]] links both "
+    "If one does, add to that page; otherwise create wiki/<topic>.md "
+    "with a '## Last Updated: <today>' line. Never delete, reword, "
+    "reformat or re-align an existing line — Markdown tables included. "
+    "Put every addition on a new line of its own: new facts, new "
+    "[[wiki/<name>]] links and back-links, new index entries, new table "
+    "rows; never append to the end of an existing line (for example a "
+    "Related line that already lists links). When a fact has changed, "
+    "add a new line saying so with today's date (for example '- <today> "
+    "correction: ...') next to the old one and leave the old line as it "
+    "is. The '## Last Updated:' date may be changed, but keep any text "
+    "after the date, and never add a second '## Last Updated:' line. "
+    "Add [[wiki/<name>]] links both "
     "ways between the new/updated page and related pages — from it to "
     "them, and from them back to it. If the page is new, add it to the "
     "root index.md under its topics section ('## Topics' in an English-"
@@ -79,8 +91,16 @@ WORKER_PROMPT_TEMPLATE_KO = (
     "판단하세요: 남길 만한 지속적인 사실·결정·방법이 없으면 건너뛰고 정확히 이렇게 "
     "답하세요: SKIP: <이유>. 그렇지 않고 세션의 작업 위치가 git 저장소였거나(이 위키에 "
     "색인되어 있든 아니든), 내용이 루트 index.md 에 이미 있는 주제와 맞으면 반영하세요.\n"
-    "먼저 이미 그 주제를 다루는 페이지가 있는지 찾아보세요. 있으면 그 자리에서 갱신하고, "
-    "없으면 '## Last Updated: <today>' 줄을 포함한 wiki/<주제>.md 를 새로 만드세요. 새/갱신된 "
+    "먼저 이미 그 주제를 다루는 페이지가 있는지 찾아보세요. 있으면 그 페이지에 덧붙이고, "
+    "없으면 '## Last Updated: <today>' 줄을 포함한 wiki/<주제>.md 를 새로 "
+    "만드세요. 기존 줄은 지우거나, 고쳐 쓰거나, 모양을 바꾸거나 다시 정렬하지 "
+    "마세요 — 마크다운 표도 마찬가지입니다. 추가하는 것은 모두 새 줄에 따로 "
+    "쓰세요: 새 사실, 새 [[wiki/<이름>]] 링크와 되돌림 링크, 새 목차 항목, 새 "
+    "표 행. 이미 있는 줄 끝에 덧붙이지 마세요(예: 이미 링크가 나열된 관련 문서 "
+    "줄). 사실이 바뀌었으면 옛 줄은 그대로 두고 그 옆에 오늘 날짜를 붙인 새 줄로 "
+    "알리세요(예: '- <today> 정정: ...'). '## Last Updated:' 의 날짜는 "
+    "바꿔도 되지만 날짜 뒤의 글은 남기고, '## Last Updated:' 줄을 하나 더 "
+    "만들지 마세요. 새/갱신된 "
     "페이지와 관련 페이지 사이에 양방향으로 [[wiki/<이름>]] 링크를 추가하세요 — 새 페이지에서 "
     "관련 페이지로, 그리고 관련 페이지에서 새 페이지로. 페이지가 새로 생겼다면 루트 "
     "index.md 의 주제 섹션에도 추가하세요(영문 콘텐츠 위키면 '## Topics', 한글 콘텐츠 "
@@ -170,7 +190,10 @@ def _build_session_data(job: dict) -> str:
 def build_claude_cmd(claude_exe: str) -> list[str]:
     # No --add-dir / --allowedTools: the session data travels on stdin, not
     # as a path the CLI would need extra read access for, and cwd is the
-    # wiki itself so --permission-mode acceptEdits alone is enough.
+    # temporary copy of the KB's Markdown files (session jobs) or the KB
+    # itself (health jobs), so --permission-mode acceptEdits alone is enough.
+    # The copy holds only .md files, so --setting-sources project,local finds
+    # no KB-level .claude/settings there (Keel never creates one).
     return [
         claude_exe,
         "-p",
@@ -179,11 +202,11 @@ def build_claude_cmd(claude_exe: str) -> list[str]:
     ]
 
 
-def build_codex_cmd(codex_exe: str, wiki_path: Path) -> list[str]:
+def build_codex_cmd(codex_exe: str, workdir: Path) -> list[str]:
     return [
         codex_exe,
         "exec",
-        "-C", str(wiki_path),
+        "-C", str(workdir),
         "-s", "workspace-write",
         "-c", "features.hooks=false",
         "--skip-git-repo-check",
@@ -533,6 +556,25 @@ def process_health(kit_home: Path, job: dict) -> str:
     return outcome
 
 
+def _settle(kit_home: Path, wiki_path: Path, before: dict, after: dict, stdout: str) -> str:
+    """Decides a session job's outcome from what the CLI changed in the
+    copy; the CLI's own APPLIED/SKIP answer only supplies the skip reason."""
+    changed = _wiki_guard.changed_paths(before, after)
+    if not changed:
+        last = _last_nonempty_line(stdout)
+        reason = last[len("SKIP:"):].strip() if last.startswith("SKIP:") else "no changes"
+        return f"skipped: {reason}"
+    problems = _wiki_guard.check_update(before, after)
+    if problems:
+        problem, path = problems[0]
+        _wiki_guard.record_notice(kit_home, "rejected", problem, path)
+        return f"rejected: {problem} {path}"
+    if not _wiki_guard.apply_changes(wiki_path, before, after, changed):
+        _wiki_guard.record_notice(kit_home, "conflict")
+        return "conflict"
+    return f"applied: {len(changed)} files"
+
+
 def process_one(job_path: Path, kit_home: Path) -> str:
     try:
         job = json.loads(job_path.read_text(encoding="utf-8"))
@@ -564,6 +606,9 @@ def process_one(job_path: Path, kit_home: Path) -> str:
         _common.log(kit_home, f"session={session_id} error: empty wiki_path")
         return "error"
     wiki_path = Path(wiki_path_str)
+    if not wiki_path.is_dir():
+        _common.log(kit_home, f"session={session_id} error: wiki_path missing")
+        return "error"
 
     cli = job.get("cli", "")
     handled_before = job.get("handled_before", 0)
@@ -582,37 +627,42 @@ def process_one(job_path: Path, kit_home: Path) -> str:
 
     prompt_lang = _worker_prompt_lang(kit_home)
     stdin_text = WORKER_PROMPTS[prompt_lang].format(session_data=_build_session_data(job))
-    if cli == "codex":
-        cmd = build_codex_cmd(cli_exe, wiki_path)
-    else:
-        cmd = build_claude_cmd(cli_exe)
-
+    stage, before = _wiki_guard.make_stage(wiki_path)
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(wiki_path),
-            env=env,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        _common.log(kit_home, f"session={session_id} timeout")
-        return "timeout"
-    except OSError:
-        _common.log(kit_home, f"session={session_id} error")
-        return "error"
+        if cli == "codex":
+            cmd = build_codex_cmd(cli_exe, stage)
+        else:
+            cmd = build_claude_cmd(cli_exe)
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(stage),
+                env=env,
+                input=stdin_text,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            _common.log(kit_home, f"session={session_id} timeout")
+            return "timeout"
+        except OSError:
+            _common.log(kit_home, f"session={session_id} error")
+            return "error"
 
-    if proc.returncode != 0:
-        stderr_line = _common.redact(_last_nonempty_line(proc.stderr))[:200]
-        _common.log(kit_home, f"session={session_id} error: {stderr_line}")
-        return "error"
+        if proc.returncode != 0:
+            stderr_line = _common.redact(_last_nonempty_line(proc.stderr))[:200]
+            _common.log(kit_home, f"session={session_id} error: {stderr_line}")
+            return "error"
 
-    outcome = _outcome_for(proc.stdout)
+        after = _wiki_guard.read_tree(stage)
+        outcome = _settle(kit_home, wiki_path, before, after, proc.stdout)
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+
     _common.log(kit_home, f"session={session_id} {outcome}")
 
-    if session_id:
+    if session_id and outcome != "conflict":
         ledger = _common.load_ledger(ledger_path)
         _common.bump_ledger(ledger, session_id, handled_before + user_message_count)
         _common.save_ledger(ledger_path, ledger)

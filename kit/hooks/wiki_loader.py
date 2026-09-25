@@ -1,10 +1,67 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _common
+
+
+_LOG_HINT = "~/.keel/state/auto-update.log"
+_NOTICE_TEXT = {
+    "en": {
+        "text": (
+            "[keel] The last automatic KB update was not applied: it would "
+            "have removed or changed existing text in {path}. Your KB is "
+            "unchanged. Details: " + _LOG_HINT
+        ),
+        "outside": (
+            "[keel] The last automatic KB update was not applied: it wrote "
+            "outside index.md and wiki/ ({path}). Your KB is unchanged. "
+            "Details: " + _LOG_HINT
+        ),
+        "conflict": (
+            "[keel] The last automatic KB update was not applied: the KB "
+            "changed while it ran. Your KB is unchanged. Details: " + _LOG_HINT
+        ),
+        "count": (" ({count} updates)"),
+    },
+    "ko": {
+        "text": (
+            "[keel] 마지막 지식 베이스 자동 업데이트를 반영하지 않았습니다: {path} 의 기존 "
+            "내용을 지우거나 바꾸려 했습니다. 지식 베이스는 그대로입니다. 자세한 내용: "
+            + _LOG_HINT
+        ),
+        "outside": (
+            "[keel] 마지막 지식 베이스 자동 업데이트를 반영하지 않았습니다: index.md 와 "
+            "wiki/ 밖에 쓰려 했습니다({path}). 지식 베이스는 그대로입니다. 자세한 내용: "
+            + _LOG_HINT
+        ),
+        "conflict": (
+            "[keel] 마지막 지식 베이스 자동 업데이트를 반영하지 않았습니다: 업데이트하는 "
+            "동안 지식 베이스가 바뀌었습니다. 지식 베이스는 그대로입니다. 자세한 내용: "
+            + _LOG_HINT
+        ),
+        "count": (" ({count}건)"),
+    },
+}
+
+
+def _notice_line(notice, language: str) -> str:
+    if not notice:
+        return ""
+    table = _NOTICE_TEXT.get(language, _NOTICE_TEXT["en"])
+    if notice.get("kind") == "conflict":
+        line = table["conflict"]
+    elif notice.get("problem") == "outside":
+        line = table["outside"].format(path=notice.get("path", ""))
+    else:
+        line = table["text"].format(path=notice.get("path", ""))
+    count = notice.get("count", 1)
+    if isinstance(count, int) and count > 1:
+        line += table["count"].format(count=count)
+    return line
 
 
 def _index_head(wiki_path: str, no_index_text: str) -> str:
@@ -66,7 +123,19 @@ def run() -> int:
         f"{head_label}\n"
         f"{head}"
     )
-    _common.emit_context("SessionStart", text)
+    try:
+        import _wiki_guard
+        notice_line = _notice_line(_wiki_guard.take_notice(_common.kit_home()), language)
+    except Exception:
+        notice_line = ""
+    if notice_line:
+        text = f"{text}\n{notice_line}"
+        print(json.dumps({
+            "systemMessage": notice_line,
+            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text},
+        }))
+    else:
+        _common.emit_context("SessionStart", text)
     return 0
 
 

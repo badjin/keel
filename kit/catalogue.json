@@ -171,10 +171,10 @@
     "script": "wiki_auto_update.py",
     "timeout": 3,
     "title_ko": "세션이 끝나면 지식 베이스 자동 업데이트",
-    "desc_ko": "세션이 짧거나 내용이 없으면 건너뛰고, 지금 작업한 저장소나 이미 지식 베이스에 있는 주제라면 자동으로 지식 베이스를 갱신합니다. \"위키 업데이트해 줘\" (지식 베이스 업데이트해 줘) 처럼 직접 요청한 것은 kb-ingest 스킬이 그 자리에서 처리합니다. 뒤에서 선택한 CLI(Claude Code 또는 Codex)를 한 번 더 실행해서 반영하므로 그 CLI 의 사용량(쿼터)을 씁니다.",
+    "desc_ko": "세션이 짧거나 내용이 없으면 건너뛰고, 지금 작업한 저장소나 이미 지식 베이스에 있는 주제라면 자동으로 지식 베이스를 갱신합니다. \"위키 업데이트해 줘\" (지식 베이스 업데이트해 줘) 처럼 직접 요청한 것은 kb-ingest 스킬이 그 자리에서 처리합니다. 사용한 CLI(Claude Code 또는 Codex)를 내 로그인 그대로 백그라운드에서 한 번 더 실행하고, 한 달에 한 번쯤은 같은 방식으로 지식 베이스 헬스 체크도 실행합니다. 구독으로 로그인되어 있으면 요금제 사용 한도에서 차감되고, API 키(환경의 ANTHROPIC_API_KEY·CODEX_API_KEY 포함)를 쓰면 그 API 계정에 과금됩니다.",
     "example_ko": "긴 세션 종료 → 백그라운드에서 지식 베이스를 갱신하거나, 내용이 없으면 조용히 건너뜁니다.",
     "title_en": "Auto-update the knowledge base when a session ends",
-    "desc_en": "Skips short or empty sessions; otherwise, if the repo just worked on or a topic already in the knowledge base matches, updates the knowledge base automatically. A direct request like \"update the wiki\" (update the KB) is handled on the spot by the kb-ingest skill instead. Applying the update runs the chosen CLI (Claude Code or Codex) once more in the background, so it uses that CLI's quota.",
+    "desc_en": "Skips short or empty sessions; otherwise, if the repo just worked on or a topic already in the knowledge base matches, updates the knowledge base automatically. A direct request like \"update the wiki\" (update the KB) is handled on the spot by the kb-ingest skill instead. It runs the CLI you used (Claude Code or Codex) once more in the background with your own login, and about once a month also runs the KB health check the same way. A subscription login uses your plan's usage limits; an API key (including ANTHROPIC_API_KEY or CODEX_API_KEY in your environment) is billed to that API account.",
     "example_en": "A long session ends → the knowledge base is updated in the background, or skipped quietly if there was nothing to add.",
     "default": true,
     "targets": ["claude", "codex"]

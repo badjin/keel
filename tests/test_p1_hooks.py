@@ -18,7 +18,7 @@ class HooksTest(unittest.TestCase):
         self.kit_home = Path(self.tmp.name) / "kit_home"
         self.hooks_dir = self.kit_home / "hooks"
         self.hooks_dir.mkdir(parents=True)
-        for name in ("_common.py", "_maintenance.py", "wiki_loader.py", "no_speculation.py"):
+        for name in ("_common.py", "_maintenance.py", "_wiki_guard.py", "wiki_loader.py", "no_speculation.py"):
             shutil.copy(HOOKS_SRC / name, self.hooks_dir / name)
 
     def run_hook(self, script_name: str, payload: dict | str):
@@ -97,6 +97,34 @@ class HooksTest(unittest.TestCase):
         data = json.loads(proc.stdout)
         ctx = data["hookSpecificOutput"]["additionalContext"]
         self.assertIn("# 내 위키", ctx)
+
+    def test_wiki_loader_notice_once(self):
+        wiki = Path(self.tmp.name) / "wiki"
+        wiki.mkdir()
+        (wiki / "index.md").write_text("# My KB\n## Topics", encoding="utf-8")
+        self.write_config(wiki, "en")
+        state = self.kit_home / "state"
+        state.mkdir()
+        notice_file = state / "auto-update-notice.json"
+        notice_file.write_text(json.dumps({
+            "kind": "rejected",
+            "problem": "changed",
+            "path": "wiki/page.md",
+            "count": 1,
+        }), encoding="utf-8")
+
+        first = self.run_hook("wiki_loader.py", {"session_id": "s"})
+        self.assertEqual(first.returncode, 0)
+        data = json.loads(first.stdout)
+        self.assertIn("wiki/page.md", data["systemMessage"])
+        context = data["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(data["systemMessage"], context)
+        self.assertIn("# My KB", context)
+        self.assertFalse(notice_file.exists())
+
+        second = self.run_hook("wiki_loader.py", {"session_id": "s"})
+        self.assertEqual(second.returncode, 0)
+        self.assertNotIn("systemMessage", json.loads(second.stdout))
 
     def test_wiki_loader_index_not_utf8(self):
         wiki = Path(self.tmp.name) / "wiki_bad"

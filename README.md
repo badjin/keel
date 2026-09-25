@@ -181,6 +181,23 @@ The `hooks = true` line in `~/.codex/config.toml` is not removed by this
 procedure — other, non-kit Codex hooks may depend on that setting. Remove
 it yourself only if you are certain it isn't needed.
 
+## What the background runs use
+
+Three features run the `claude` or `codex` command on this computer in the background, with
+the login it already has: the automatic KB update when a session ends, the optional LLM
+summary on the GitHub tab (run again on each merge-watch refresh that uses it), and the
+monthly health check. If that CLI is signed in with a subscription (a Claude or ChatGPT
+plan), these runs count toward the plan's usage limits. If it uses an API key instead, each
+run is billed to that API account — Claude Code does this whenever `ANTHROPIC_API_KEY` is set
+in your environment, even if you are also logged in with a plan; Codex does when you signed in
+with an API key or `CODEX_API_KEY` is set. Keel has no server and charges nothing itself.
+
+- **Automatic KB update** — turn off "Auto-update the knowledge base when a session ends" on
+  the Hooks tab and reinstall.
+- **Monthly health check** — turn off the same hook on the Hooks tab and reinstall.
+- **LLM summary** — choose "Not used" on the GitHub tab.
+- **Merge-watch refresh** — uncheck that branch's box and run the GitHub step again.
+
 ## KB auto-update
 
 The `wiki-auto-update` hook (on by default) decides what to do each time a
@@ -193,21 +210,26 @@ session ends.
 - **When it applies automatically** — if the folder just worked in is a git
   repository, or the conversation content matches a topic already in the
   KB root's `index.md`, it updates the KB automatically.
+- **Never removes existing text** — the update works on a temporary copy of the KB.
+  Keel copies back only `index.md` and `wiki/` pages that keep every existing line and every
+  note after a Last Updated date; changed facts are added as new dated lines. If an
+  update breaks this, or the KB changed while it ran, nothing is applied and the next
+  session start says so in one line.
 - **Direct request** — an explicit request like "update the wiki" / update
   the KB, or "add this session to the wiki" / add this session to the KB,
   is handled on the spot by the `kb-ingest` skill (separate from this
   hook).
-- **Uses quota** — the update runs the chosen CLI once more in the
-  background after the session ends, so it uses that CLI's usage quota.
+- **Uses your login** — see "What the background runs use" above.
 - **Temporary files** — this session's conversation content is briefly
   saved as a working file under `~/.keel/state/auto-update/`,
   handed to the chosen CLI, and deleted right after processing finishes
-  (whether it was applied, skipped, or errored). It can only remain behind
-  if the background worker process itself is killed mid-run.
-- **Read/write scope of the background run** — Codex's background run can
-  read files outside the KB (its writes stay limited to the KB, via
-  its own sandboxed working directory); Claude's background run is
-  limited to the KB for both reading and writing.
+  (whether it was applied, skipped, or errored). A temporary copy of the KB's
+  Markdown files (`keel-update-…` in the system temp folder) exists while the
+  update runs and is deleted afterwards. The job file or temporary copy can
+  remain only if the background worker process is killed mid-run.
+- **Read/write scope of the background run** — both CLIs read and write the
+  temporary copy (Codex can still read files outside it). Only Keel writes
+  to the KB itself, after the check.
 - **How to turn it off** — turn off the "Auto-update the knowledge base when
   a session ends" checkbox on the Hooks tab and reinstall.
 - **Log** — `~/.keel/state/auto-update.log` shows why sessions were
@@ -225,8 +247,7 @@ own.
   of the merge.
 - **Requirements** — the Knowledge Base loader hook (`wiki-loader`) must be
   installed; a private repository needs `gh auth login` on this computer.
-- **Uses quota** — if an AI summary was chosen for that repository, each
-  refresh runs the summary again and uses that CLI's usage quota.
+- **Uses your login** — see "What the background runs use" above.
 - **How to turn it off** — uncheck the box for that repository and branch
   and run the GitHub step again.
 
@@ -237,6 +258,7 @@ automatically in the background.
 
 - **Requirements** — needs the `wiki-auto-update` hook (SessionEnd)
   installed (the same way merge watch needs `wiki-loader`, above).
+- **Uses your login** — see "What the background runs use" above.
 - **What it fixes** — the same four checks as `kb-lint` (broken links,
   ambiguous links, orphan pages, one-way links), but it fixes what is safe
   without asking: missing back-links, orphans linked from the root

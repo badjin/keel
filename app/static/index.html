@@ -244,7 +244,8 @@
           (at most every 6 hours) and refreshes that repository's pages in the background — not
           at the moment of the merge. It needs the Knowledge Base loader hook installed; private
           repositories need <code>gh auth login</code> on this computer; if an AI summary was
-          chosen, each refresh runs the summary again and uses that CLI's quota.
+          chosen, each refresh runs the summary again with your own login (subscription usage,
+          or API billing when an API key is used).
         </p>
 
         <h3 data-i18n="github.localReposHeading">Local repositories</h3>
@@ -266,7 +267,7 @@
 
         <div class="field-label" data-i18n="github.llmSummaryLabel">LLM summary</div>
         <div class="segmented" id="gh-llm" role="radiogroup" aria-label="LLM summary" data-i18n-attr='{"aria-label":"github.llmSummaryLabel"}'></div>
-        <p class="field-note" data-i18n="github.llmQuotaNote">Uses the chosen CLI's quota.</p>
+        <p class="field-note" data-i18n="github.llmQuotaNote">Runs the chosen CLI with your own login — per repository, one call for the overview, one per month and one per top area (up to 10). A subscription login uses your plan's usage limits; an API key (including <code>ANTHROPIC_API_KEY</code> or <code>CODEX_API_KEY</code> in your environment) is billed to that API account.</p>
 
         <div class="btn-row" id="github-run">
           <button class="btn" id="btn-gh-run"><span class="label" data-i18n="github.runBtn">Build knowledge base pages</span><span class="spinner">…</span></button>

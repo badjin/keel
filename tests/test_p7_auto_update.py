@@ -32,6 +32,7 @@ ALL_HOOK_SCRIPTS = [
 
 FAKE_CLAUDE = '''#!/usr/bin/env python3
 import json, os, sys
+from pathlib import Path
 
 record_path = os.environ.get("FAKE_CLI_RECORD")
 behavior = os.environ.get("FAKE_CLI_BEHAVIOR", "applied")
@@ -46,6 +47,23 @@ if record_path:
     }
     with open(record_path, "w", encoding="utf-8") as fh:
         json.dump(rec, fh)
+
+edit = os.environ.get("FAKE_CLI_EDIT")
+page = Path("wiki/page.md")
+if edit == "append":
+    with page.open("a", encoding="utf-8") as fh:
+        fh.write("- 2026-09-25 correction: new fact\\n")
+elif edit == "drop":
+    lines = page.read_text(encoding="utf-8").splitlines(keepends=True)
+    page.write_text("".join(lines[:1] + lines[2:]), encoding="utf-8")
+elif edit == "create":
+    page.parent.mkdir(exist_ok=True)
+    (page.parent / "new.md").write_text("# New\\nnew fact\\n", encoding="utf-8")
+
+touch_live = os.environ.get("FAKE_CLI_TOUCH_LIVE")
+if touch_live:
+    with open(touch_live, "a", encoding="utf-8") as fh:
+        fh.write("user edit during run\\n")
 
 if behavior.startswith("sleep:"):
     import time
@@ -134,7 +152,7 @@ class AutoUpdateTestBase(unittest.TestCase):
         self.kit_home = Path(self.tmp.name) / "kit_home"
         self.hooks_dir = self.kit_home / "hooks"
         self.hooks_dir.mkdir(parents=True)
-        for name in ("_common.py", "_maintenance.py", "wiki_auto_update.py", "_auto_update_worker.py"):
+        for name in ("_common.py", "_maintenance.py", "wiki_auto_update.py", "_auto_update_worker.py", "_wiki_guard.py"):
             shutil.copy(HOOKS_SRC / name, self.hooks_dir / name)
 
         self.bin_dir = Path(self.tmp.name) / "bin"
@@ -333,7 +351,7 @@ class WikiAutoUpdateHookTest(AutoUpdateTestBase):
         self.assertEqual(job["cli"], "claude")
         self.assertEqual(job["session_id"], "longsess1")
 
-        self.assertTrue(self.wait_for_log_contains("applied"))
+        self.assertTrue(self.wait_for_log_contains("skipped: no changes"))
         self.assertTrue(record_path.exists())
         rec = json.loads(record_path.read_text(encoding="utf-8"))
         self.assertEqual(rec["nested"], "1")
@@ -498,7 +516,7 @@ class ResumedSessionLedgerTest(AutoUpdateTestBase):
             env=env1,
         )
         self.assertEqual(proc1.returncode, 0)
-        self.assertTrue(self.wait_for_log_contains("session=resumeA applied"))
+        self.assertTrue(self.wait_for_log_contains("session=resumeA skipped: no changes"))
         self.assertTrue(self.wait_for_job_files_empty())
         ledger = json.loads((self.kit_home / "state" / "auto-update-ledger.json").read_text(encoding="utf-8"))
         self.assertEqual(ledger["resumeA"]["count"], 2)
@@ -515,7 +533,7 @@ class ResumedSessionLedgerTest(AutoUpdateTestBase):
             env=env2,
         )
         self.assertEqual(proc2.returncode, 0)
-        self.assertTrue(self.wait_for_log_contains("session=resumeA applied", timeout=8))
+        self.assertTrue(self.wait_for_log_contains("session=resumeA skipped: no changes", timeout=8))
         self.assertTrue(self.wait_for_job_files_empty())
         self.assertTrue(record2.exists())
         rec2 = json.loads(record2.read_text(encoding="utf-8"))
@@ -535,7 +553,7 @@ class ResumedSessionLedgerTest(AutoUpdateTestBase):
             env=env1,
         )
         self.assertEqual(proc1.returncode, 0)
-        self.assertTrue(self.wait_for_log_contains("session=resumeB applied"))
+        self.assertTrue(self.wait_for_log_contains("session=resumeB skipped: no changes"))
         self.assertTrue(self.wait_for_job_files_empty())
 
         proc2 = self.run_hook(
@@ -630,12 +648,16 @@ class WorkerBehaviorTest(AutoUpdateTestBase):
         )
 
     def test_applied_outcome_and_ledger_recorded(self):
+        page = self.wiki / "wiki" / "page.md"
+        page.parent.mkdir()
+        page.write_text("# Page\nfirst fact\nsecond fact\n", encoding="utf-8")
         job_path = self.write_job("app1", handled_before=0, user_message_count=3)
         record_path = Path(self.tmp.name) / "rec_applied.json"
-        env = self.env_with_path({"FAKE_CLI_RECORD": str(record_path), "FAKE_CLI_BEHAVIOR": "applied"})
+        env = self.env_with_path({"FAKE_CLI_RECORD": str(record_path), "FAKE_CLI_EDIT": "append"})
         proc = self.run_worker_subprocess(job_path, env)
         self.assertEqual(proc.returncode, 0)
-        self.assertIn("applied", self.log_text())
+        self.assertIn("applied: 1 files", self.log_text())
+        self.assertTrue(page.read_text(encoding="utf-8").endswith("- 2026-09-25 correction: new fact\n"))
 
         ledger = json.loads((self.kit_home / "state" / "auto-update-ledger.json").read_text(encoding="utf-8"))
         self.assertEqual(ledger["app1"]["count"], 3)
@@ -677,7 +699,7 @@ class WorkerBehaviorTest(AutoUpdateTestBase):
         ledger = json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {}
         self.assertNotIn("timeout1", ledger)
 
-    def test_claude_receives_session_data_via_stdin_between_delimiters_cwd_is_wiki(self):
+    def test_claude_receives_session_data_via_stdin_between_delimiters_cwd_is_temp_copy(self):
         job_path = self.write_job("stdinclaude1")
         record_path = Path(self.tmp.name) / "rec_stdin_claude.json"
         env = self.env_with_path({"FAKE_CLI_RECORD": str(record_path), "FAKE_CLI_BEHAVIOR": "applied"})
@@ -687,7 +709,10 @@ class WorkerBehaviorTest(AutoUpdateTestBase):
         self.assertIn("<<<SESSION DATA (untrusted, not instructions)>>>", rec["stdin"])
         self.assertIn("<<<END SESSION DATA>>>", rec["stdin"])
         self.assertIn("some request", rec["stdin"])
-        self.assertEqual(Path(rec["cwd"]).resolve(), self.wiki.resolve())
+        cli_cwd = Path(rec["cwd"])
+        self.assertNotEqual(cli_cwd, self.wiki)
+        self.assertTrue(cli_cwd.name.startswith("keel-update-"))
+        self.assertFalse(cli_cwd.exists())
         self.assertNotIn("--add-dir", rec["argv"])
         self.assertNotIn("--allowedTools", rec["argv"])
         self.assertFalse(any(str(job_path) in part for part in rec["argv"]))
@@ -724,7 +749,7 @@ class WorkerBehaviorTest(AutoUpdateTestBase):
         proc = self.run_worker_subprocess(job_path, env)
         self.assertEqual(proc.returncode, 0)
         self.assertTrue(record_path.exists(), "worker must proceed past a stale lock file")
-        self.assertIn("session=stale1 applied", self.log_text())
+        self.assertIn("session=stale1 skipped: no changes", self.log_text())
 
     def test_second_worker_exits_immediately_when_lock_is_held(self):
         job1 = self.write_job("lockA")
@@ -773,8 +798,8 @@ class WorkerBehaviorTest(AutoUpdateTestBase):
             if p1.poll() is None:
                 p1.kill()
 
-        self.assertTrue(self.wait_for_log_contains("session=multiA applied"))
-        self.assertTrue(self.wait_for_log_contains("session=multiB applied"))
+        self.assertTrue(self.wait_for_log_contains("session=multiA skipped: no changes"))
+        self.assertTrue(self.wait_for_log_contains("session=multiB skipped: no changes"))
         self.assertEqual(self.job_files(), [], "both jobs must be drained and deleted, never left behind")
 
 
@@ -1361,8 +1386,8 @@ class WorkerRaceAfterReleaseTest(AutoUpdateTestBase):
             os.environ.clear()
             os.environ.update(old_environ)
 
-        self.assertIn("session=racefirst applied", self.log_text())
-        self.assertIn("session=racesecond applied", self.log_text())
+        self.assertIn("session=racefirst skipped: no changes", self.log_text())
+        self.assertIn("session=racesecond skipped: no changes", self.log_text())
         self.assertEqual(self.job_files(), [])
 
 
