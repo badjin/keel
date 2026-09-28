@@ -18,6 +18,14 @@ MESSAGES = {
         "en": "The wiki has not been created yet",
         "ko": "위키가 아직 만들어지지 않았습니다",
     },
+    "workflow_needs_claude_or_codex": {
+        "en": "Select Claude Code or Codex for the workflow",
+        "ko": "워크플로우에 Claude Code 또는 Codex를 선택하세요",
+    },
+    "workflow_bad_critic": {
+        "en": "Workflow critic must be claude or codex",
+        "ko": "워크플로우 리뷰 CLI는 claude 또는 codex여야 합니다",
+    },
     "path_required": {"en": "A path is required", "ko": "경로가 필요합니다"},
     "gh_cli_token_missing": {
         "en": "Could not find a gh CLI login token",

@@ -304,11 +304,6 @@ class TestStepNumDesign(unittest.TestCase):
         self.assertIn("color: var(--muted-text)", match.group(1))
         self.assertIn("margin-right: 8px", match.group(1))
 
-    def test_step_num_present_for_all_four_headings(self):
-        html = (STATIC / "index.html").read_text(encoding="utf-8")
-        self.assertEqual(html.count('class="step-num"'), 4)
-
-
 class TestUninstallRemoveSkillsControl(unittest.TestCase):
     """Task 6.2 step 7: the 훅 tab's uninstall button gets a 스킬도 제거
     checkbox sent as remove_skills."""

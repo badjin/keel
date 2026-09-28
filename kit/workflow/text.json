@@ -1,0 +1,17 @@
+{
+  "approve_word": {"en": "approve"},
+  "none_tokens": {"en": ["None.", "None"]},
+  "topics_heading": {"en": "## Topics"},
+  "archive_title": {"en": "# Work archive"},
+  "archive_intro": {"en": "One row per finished Keel work item: its intent, spec and plan."},
+  "archive_header": {"en": "| Date | Intent | Spec | Plan | Summary |\n|---|---|---|---|---|"},
+  "grade_block": {"en": "Keel workflow: if this request is substantive work, make your first line `Grade: FULL — <reason>` or `Grade: LIGHT — <reason>`. FULL = end users or the production runtime consume the change (runtime code, schema, deploy/CI config, dependency versions, runtime config, user-facing text), even one line. LIGHT = only developers consume it (developer docs, local tooling, notes). Unclear → FULL and ask. FULL starts with the keel-intent skill; LIGHT: make the change, then run `{keel_wf} critic light --repo <repo> --request \"<one line>\"`. Pure questions need no grade."},
+  "work_reminder": {"en": "Keel work {id}: {problem}\nStatus: {status} — next: {next}\nFolder: {path}"},
+  "work_hint": {"en": "Open Keel work here: {path} ({status}) — read its intent.md to continue it."},
+  "approved_msg": {"en": "The user approved {id} (hash {hash12}). Continue to the spec with the keel-spec skill."},
+  "nothing_awaits": {"en": "Keel: nothing awaits approval under the name {name}."},
+  "ambiguous_slug": {"en": "Keel: more than one work item named {name} awaits approval — type approve <YYYY-MM-DD>-{name}."},
+  "stale_intent": {"en": "Keel: {id} changed after it was submitted — run critic intent and intent submit again, then approve."},
+  "submit_instruction": {"en": "Read {path}. To approve, type exactly: approve {slug}"},
+  "check_footer": {"en": "Nothing was changed. To fix, reinstall from Keel's Workflow step (python3 app/server.py)."}
+}

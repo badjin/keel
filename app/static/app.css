@@ -328,7 +328,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   color: var(--muted-text);
   margin-right: 8px;
 }
-#hook-targets, #lifecycle-rail, #event-SessionStart, #event-UserPromptSubmit, #event-PreToolUse, #event-PostToolUse, #event-Stop, #event-SessionEnd, #wiki-structure, #wiki-path-section, #wiki-mode-cards, #github-connect, #repo-list, #github-period, #github-run, #finish-summary-section, #obsidian-section {
+#hook-targets, #lifecycle-rail, #event-SessionStart, #event-UserPromptSubmit, #event-PreToolUse, #event-PostToolUse, #event-Stop, #event-SessionEnd, #wiki-structure, #wiki-path-section, #wiki-mode-cards, #github-connect, #repo-list, #github-period, #github-run, #wf-map, #wf-manifest-heading, #codex-trust-guide, #finish-summary-section, #obsidian-section {
   scroll-margin-top: 72px;
 }
 .event-group {
@@ -716,6 +716,18 @@ input[type="radio"], input[type="checkbox"], .due-slip input[type="range"] {
 .summary-list li:first-child {
   border-top: 0;
 }
+#wf-map {
+  display: block;
+  width: 100%;
+  min-height: 400px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 24px;
+}
+#panel-workflow .choice-card:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 .copy-row {
   align-items: center;
   display: flex;
@@ -773,7 +785,7 @@ input[type="radio"], input[type="checkbox"], .due-slip input[type="range"] {
     grid-template-columns: repeat(6, minmax(96px, 1fr));
     overflow-x: auto;
   }
-  #hook-targets, #lifecycle-rail, #event-SessionStart, #event-UserPromptSubmit, #event-PreToolUse, #event-PostToolUse, #event-Stop, #event-SessionEnd, #wiki-structure, #wiki-path-section, #wiki-mode-cards, #github-connect, #repo-list, #github-period, #github-run, #finish-summary-section, #obsidian-section {
+  #hook-targets, #lifecycle-rail, #event-SessionStart, #event-UserPromptSubmit, #event-PreToolUse, #event-PostToolUse, #event-Stop, #event-SessionEnd, #wiki-structure, #wiki-path-section, #wiki-mode-cards, #github-connect, #repo-list, #github-period, #github-run, #wf-map, #wf-manifest-heading, #codex-trust-guide, #finish-summary-section, #obsidian-section {
     scroll-margin-top: 124px;
   }
 }

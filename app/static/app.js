@@ -100,8 +100,11 @@ function rerenderForLanguage() {
   renderRepoList();
   renderLocalRepoList();
   relabelRail();
+  if (state.workflowStatus) renderWorkflowStatus();
+  if (!document.getElementById("panel-workflow").hidden) updateWorkflowMap();
   renderGhWhoami();
   if (state.finishResult) renderFinishSummary(state.finishResult);
+  if (state.mapPath) document.getElementById("finish-map-path").textContent = t("finish.mapPath", { path: state.mapPath });
   if (state.wikiResultItems) renderList("wiki-result", state.wikiResultItems);
   relabelErrors();
   syncDue(dueRange.value);
@@ -163,6 +166,8 @@ const state = {
   jobTimer: null,
   ghWhoami: null, // null = never connected; {} = connected without a login; {login} otherwise
   finishResult: null,
+  mapPath: null,
+  workflowStatus: null,
   wikiResultItems: null,
   errors: {}, // elId -> {key, vars} for a currently-shown error that came from t(), else null
 };
@@ -193,7 +198,9 @@ async function api(path, opts) {
   }
   if (!res.ok) {
     const message = (data && data.error) || t("common.requestFailed", { status: res.status });
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
   return data;
 }
@@ -244,12 +251,23 @@ async function withBusy(btn, errId, fn) {
 /* ---------------- tabs ---------------- */
 
 function showTab(name) {
+  if (name === "hooks" && codexTrustGuide.parentElement !== codexTrustHome) {
+    codexTrustHome.insertBefore(codexTrustGuide, codexTrustNext);
+    codexTrustGuide.hidden = !state.targets.has("codex");
+  }
   $all(".tab").forEach((tb) => tb.setAttribute("aria-selected", String(tb.dataset.tab === name)));
   $all(".panel").forEach((p) => {
     p.hidden = p.id !== `panel-${name}`;
   });
   if (name === "github") {
     syncGithubLanguageDefault();
+  }
+  if (name === "workflow") {
+    updateWorkflowMap();
+    loadWorkflowStatus().catch((e) => {
+      if (e.status === 403) showError("wf-error", t("common.reopenUrl"), "common.reopenUrl");
+      else showError("wf-error", e.message);
+    });
   }
   $all(".toc-panel").forEach((panel) => {
     panel.hidden = panel.dataset.toc !== name;
@@ -375,12 +393,14 @@ document.getElementById("target-claude").addEventListener("change", (e) => {
   else state.targets.delete("claude");
   updateCodexNote();
   if (state.catalogue.length) renderHookCards();
+  if (state.workflowStatus) renderWorkflowStatus();
 });
 document.getElementById("target-codex").addEventListener("change", (e) => {
   if (e.target.checked) state.targets.add("codex");
   else state.targets.delete("codex");
   updateCodexNote();
   if (state.catalogue.length) renderHookCards();
+  if (state.workflowStatus) renderWorkflowStatus();
 });
 document.getElementById("target-grok").addEventListener("change", (e) => {
   if (e.target.checked) state.targets.add("grok");
@@ -581,7 +601,8 @@ document.getElementById("btn-install-hooks").addEventListener("click", () => {
 
 document.getElementById("btn-codex-check-approval").addEventListener("click", () => {
   const btn = document.getElementById("btn-codex-check-approval");
-  withBusy(btn, "hooks-error", async () => {
+  const errorId = codexTrustGuide.parentElement.id === "wf-codex-trust" ? "wf-error" : "hooks-error";
+  withBusy(btn, errorId, async () => {
     const status = await api("/api/hooks/codex-trust");
     const resultEl = document.getElementById("codex-trust-result");
     resultEl.textContent = status.remaining === 0 && status.total_count > 0
@@ -1154,6 +1175,106 @@ function pollJob(onDone, onSuccess) {
   }, 1500);
 }
 
+/* ---------------- workflow tab ---------------- */
+
+const codexTrustGuide = document.getElementById("codex-trust-guide");
+const codexTrustHome = codexTrustGuide.parentElement;
+const codexTrustNext = codexTrustGuide.nextSibling;
+
+function workflowTargets() {
+  return ["claude", "codex"].filter((cli) => state.targets.has(cli));
+}
+
+function updateWorkflowMap() {
+  document.getElementById("wf-map").src = `/api/workflow/map-view?lang=${LANG}&t=${encodeURIComponent(TOKEN)}`;
+}
+
+window.addEventListener("message", (event) => {
+  const frame = document.getElementById("wf-map");
+  if (event.origin !== location.origin || event.source !== frame.contentWindow || event.data?.type !== "keel-map-height") return;
+  if (Number.isFinite(event.data.height)) frame.style.height = `${Math.max(400, event.data.height)}px`;
+});
+
+function renderWorkflowStatus() {
+  const status = state.workflowStatus;
+  if (!status) return;
+  const manifest = document.getElementById("wf-manifest");
+  manifest.replaceChildren();
+  status.manifest.forEach((item) => {
+    const title = item.title[LANG] || item.title.en;
+    const paths = item.path.includes("{CLI_HOME}")
+      ? workflowTargets().filter((target) => item.targets.includes(target))
+          .map((target) => item.path.replaceAll("{CLI_HOME}", status.paths.CLI_HOME[target] || "{CLI_HOME}")
+            .replaceAll("CLAUDE.md or AGENTS.md", target === "claude" ? "CLAUDE.md" : "AGENTS.md"))
+      : [item.path];
+    paths.forEach((path) => {
+      const li = document.createElement("li");
+      li.textContent = `${title} — ${path.replaceAll("{KEEL_HOME}", status.paths.KEEL_HOME || "{KEEL_HOME}").replaceAll("{KB_PATH}", status.paths.KB_PATH || "{KB_PATH}")}`;
+      manifest.appendChild(li);
+    });
+  });
+  const reviewOptions = $all('input[name="wf-critic"]');
+  reviewOptions.forEach((option) => { option.disabled = !status.clis[option.value]; });
+  const current = $('input[name="wf-critic"]:checked');
+  if (!current || current.disabled) {
+    reviewOptions.forEach((option) => { option.checked = false; });
+    const preferred = reviewOptions.find((option) => !option.disabled);
+    if (preferred) preferred.checked = true;
+  }
+  const targets = workflowTargets();
+  document.getElementById("wf-needs-kb").hidden = status.kb_ready;
+  document.getElementById("wf-needs-cli").hidden = targets.length > 0;
+  document.getElementById("wf-needs-review-cli").hidden = reviewOptions.some((option) => !option.disabled);
+  document.getElementById("btn-wf-install").disabled = !status.kb_ready || !targets.length || !reviewOptions.some((option) => !option.disabled);
+  document.getElementById("btn-wf-uninstall").disabled = !status.installed;
+}
+
+async function loadWorkflowStatus() {
+  state.workflowStatus = await api("/api/workflow/status");
+  renderWorkflowStatus();
+  if (state.workflowStatus.installed) {
+    const installedCritic = $all('input[name="wf-critic"]')
+      .find((option) => option.value === state.workflowStatus.critic_cli && !option.disabled);
+    if (installedCritic) installedCritic.checked = true;
+  }
+}
+
+document.getElementById("btn-wf-install").addEventListener("click", async () => {
+  const btn = document.getElementById("btn-wf-install");
+  await withBusy(btn, "wf-error", async () => {
+    const targets = workflowTargets();
+    const criticCli = $('input[name="wf-critic"]:checked').value;
+    const result = await api("/api/workflow/install", {
+      method: "POST", body: { critic_cli: criticCli, targets },
+    });
+    renderList("wf-result", (result.written || []).concat(
+      (result.removed || []).map((path) => `${path} — ${t("workflow.removed")}`),
+      result.errors || []));
+    await loadWorkflowStatus();
+    markStepComplete("workflow");
+    if (targets.includes("codex")) {
+      document.getElementById("wf-codex-trust").appendChild(codexTrustGuide);
+      codexTrustGuide.hidden = false;
+      codexTrustGuide.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+  renderWorkflowStatus();
+});
+
+document.getElementById("btn-wf-uninstall").addEventListener("click", async () => {
+  const btn = document.getElementById("btn-wf-uninstall");
+  await withBusy(btn, "wf-error", async () => {
+    const result = await api("/api/workflow/uninstall", { method: "POST" });
+    renderList("wf-result", (result.removed || []).concat(
+      (result.skipped || []).map((path) => `${path} — ${t("workflow.skippedBlock")}`)));
+    if (codexTrustGuide.parentElement?.id === "wf-codex-trust") {
+      codexTrustGuide.hidden = true;
+    }
+    await loadWorkflowStatus();
+  });
+  renderWorkflowStatus();
+});
+
 /* ---------------- finish tab ---------------- */
 
 document.getElementById("btn-finish").addEventListener("click", () => {
@@ -1178,9 +1299,23 @@ function renderFinishSummary(result) {
     t("finish.summary.hooksInstalled", { v: hookSummary || "-" }),
     t("finish.summary.skillsInstalled", { v: (result.skills || []).join(", ") || "-" }),
     t("finish.summary.reposConnected", { v: (result.repos || []).join(", ") || "-" }),
+    result.workflow && result.workflow.installed
+      ? t("finish.workflowLineInstalled", { critic: result.workflow.critic_cli })
+      : t("finish.workflowLineMissing"),
   ];
   renderList("finish-summary", items);
 }
+
+document.getElementById("btn-open-map").addEventListener("click", () => {
+  const btn = document.getElementById("btn-open-map");
+  withBusy(btn, "finish-error", async () => {
+    const result = await api("/api/workflow/map", { method: "POST" });
+    state.mapPath = result.path;
+    const note = document.getElementById("finish-map-path");
+    note.textContent = t("finish.mapPath", { path: result.path });
+    note.hidden = false;
+  });
+});
 
 const OBSIDIAN_DOWNLOAD_URL = "https://obsidian.md/download";
 

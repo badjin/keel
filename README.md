@@ -63,8 +63,8 @@ just click Install, and try again once it finishes.
 3. Tell the agent **"read `INSTALL.md` and follow it."** If it asks
    whether it may run the command that starts the server, allow it. The
    agent only starts the server — once the `Open / 열기:` address printed
-   afterward in the terminal opens in the browser, the user follows the four
-   steps in the browser page directly (Hooks → Knowledge Base → GitHub → Finish). To
+   afterward in the terminal opens in the browser, the user follows the five
+   steps in the browser page directly (Hooks → Knowledge Base → GitHub → Workflow → Finish). To
    stop the server the agent started, either ask the agent to stop it, or
    close that terminal window.
 
@@ -89,7 +89,7 @@ the install screen.
    where you started it and press `Control` and `C` together (Ctrl+C).
    Closing the window also works.
 
-## The four tabs
+## The five tabs
 
 1. **Hooks** — choose which hooks to plant in Claude Code / Codex
    (auto-loading the KB, blocking speculative answers, requiring
@@ -99,7 +99,9 @@ the install screen.
 3. **GitHub (optional)** — turns commit history from a GitHub repository or
    a local git repository, over a chosen period, into KB pages. Add an
    LLM summary too if you want.
-4. **Finish / Obsidian** — shows an install summary, and opens the KB
+4. **Workflow (optional)** — installs a staged workflow for Claude Code and Codex
+   if you want it. Skip this tab if you do not.
+5. **Finish / Obsidian** — shows an install summary, and opens the KB
    directly if Obsidian is present. If not, shows install guidance.
 
 ### Automatic handoff
@@ -114,6 +116,34 @@ the same pane; elsewhere, type `/clear` in Claude Code or `/new` in Codex or
 Grok. Removing the hook restores any existing status line command.
 Outside Herdr and tmux, Grok needs a follow-up request to restore after `/new`:
 its SessionStart hook output is not delivered to the agent.
+
+## Workflow (optional)
+
+The Workflow step adds grading, an intent interview and review, typed approval,
+a spec with acceptance scenarios, a plan, implementation with reviews, final
+verification, an audit, and filing the work in the KB. Its work documents live
+under `<KB>/raw/work/`. To approve an intent, type `approve <slug>`. The intent
+review checks that the KB was searched first; the intent lists the KB pages read.
+
+Each review runs the chosen CLI once more with your own login — the intent review
+up to 3 times, the spec and plan reviews, up to 2 per plan phase, and one per
+LIGHT change. A subscription login uses your plan's usage limits; an API key
+(including `ANTHROPIC_API_KEY` or `CODEX_API_KEY` in your environment) is billed
+to that API account.
+
+The workflow's rules, skills, templates, and review prompts are in English only. The
+installer's screens and harness map are bilingual. Open the map in the Workflow
+tab or on the Finish screen; a copy is saved in the KB as
+`keel-harness-map.html`. Ask Claude Code or Codex to run the `keel-check` skill
+to check the installed harness without changing files.
+
+To remove the bundle, use **Workflow → Remove workflow** before deleting
+`~/.keel`. The KB copy of the map and the work documents remain. The
+`main-branch-guard` hook exempts files under the configured KB path, even when
+the KB repository is on `main`.
+
+Grok is not a workflow target. If Claude Code and Grok are both selected, Grok
+may read the Claude Code hooks and skills; that use is not supported.
 
 ## Using Keel? Tell us
 
@@ -144,12 +174,13 @@ The `kb-lint` skill finds and fixes the three kinds of problem. Turning on
 ## Undo order
 
 **The order matters.** If you delete the `~/.keel` folder before
-removing the hooks, the scripts the already-registered hooks point to
+removing the workflow and hooks, the scripts the already-registered hooks point to
 disappear, and Claude Code / Codex can error out and get stuck. Follow the
 order below.
 
-1. **Remove the hooks first.** Start the server again
-   (`python3 app/server.py`), leave every visible CLI checkbox (Claude
+1. **Remove the workflow first.** Start the server again
+   (`python3 app/server.py`) and press **Remove workflow** on the Workflow tab.
+2. **Then remove the hooks.** Leave every visible CLI checkbox (Claude
    Code, Codex, etc.) turned on, then press the **"Remove all kit hooks"**
    button on the Hooks tab. Turning a checkbox off excludes that CLI from
    removal and can leave its hooks in place. To also remove the KB
@@ -160,16 +191,16 @@ order below.
    install time — restoring it gets you out of the lockout, but any change
    made to that file afterward disappears with it. If it doesn't exist,
    restore the newest `*.bak-*` backup in the same place for which
-   `grep -c '/.keel/hooks/' <backup file>` prints `0` — that value
-   being `0` means the backup predates the kit install. Restoring a backup
-   that isn't `0` restores a state that already has kit hooks in it, and
+   `grep -cE '/\.keel/(hooks|workflow-hooks)/' <backup file>` prints `0` — that
+   means the backup contains neither kit hooks nor workflow hooks. Restoring a
+   backup that isn't `0` restores a state that already has those hooks in it, and
    then deleting `~/.keel` reproduces the error above.
    `~/.codex/config.toml` needs no restoring — it carries no kit hook
    command and cannot cause the lockout, and `hooks = true` is covered in
    the paragraph below. A config file with neither a `.bak-before-kit` nor
    any `*.bak-*` was created new by the kit — there is no original to
    restore, so use the button instead.)
-2. **Only then** delete everything else the kit created:
+3. **Only then** delete everything else the kit created:
 
 ```
 rm -rf ~/.keel

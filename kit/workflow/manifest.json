@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "items": [
+    {"id": "wf:rules", "kind": "rules", "title": {"en": "Workflow rules", "ko": "워크플로우 규칙"}, "path": "{CLI_HOME}/CLAUDE.md or AGENTS.md", "targets": ["claude", "codex"], "stage": "entry"},
+    {"id": "wf:cli", "kind": "file", "title": {"en": "Workflow command", "ko": "워크플로우 명령"}, "path": "{KEEL_HOME}/workflow/keel_wf.py", "targets": ["claude", "codex"], "stage": "run"},
+    {"id": "wf:hook:prompt", "kind": "hook", "title": {"en": "Prompt and approval hook", "ko": "프롬프트 및 승인 훅"}, "path": "{KEEL_HOME}/workflow-hooks/wf_prompt.py", "targets": ["claude", "codex"], "stage": "entry", "event": "UserPromptSubmit", "script": "wf_prompt.py", "matcher": "", "timeout": 10},
+    {"id": "wf:hook:track", "kind": "hook", "title": {"en": "Work ownership hook", "ko": "작업 소유권 훅"}, "path": "{KEEL_HOME}/workflow-hooks/wf_track.py", "targets": ["claude", "codex"], "stage": "handoff", "event": "PostToolUse", "script": "wf_track.py", "matcher": "", "timeout": 10},
+    {"id": "wf:skill:keel-intent", "kind": "skill", "title": {"en": "Intent interview", "ko": "의도 인터뷰"}, "path": "{CLI_HOME}/skills/keel-intent/SKILL.md", "targets": ["claude", "codex"], "stage": "intent"},
+    {"id": "wf:skill:keel-spec", "kind": "skill", "title": {"en": "Specification", "ko": "명세서"}, "path": "{CLI_HOME}/skills/keel-spec/SKILL.md", "targets": ["claude", "codex"], "stage": "spec"},
+    {"id": "wf:skill:keel-plan", "kind": "skill", "title": {"en": "Implementation plan", "ko": "구현 계획"}, "path": "{CLI_HOME}/skills/keel-plan/SKILL.md", "targets": ["claude", "codex"], "stage": "plan"},
+    {"id": "wf:skill:keel-run", "kind": "skill", "title": {"en": "Run and verify", "ko": "실행 및 검증"}, "path": "{CLI_HOME}/skills/keel-run/SKILL.md", "targets": ["claude", "codex"], "stage": "run"},
+    {"id": "wf:skill:keel-check", "kind": "skill", "title": {"en": "Harness check", "ko": "하네스 점검"}, "path": "{CLI_HOME}/skills/keel-check/SKILL.md", "targets": ["claude", "codex"], "stage": "check"},
+    {"id": "wf:templates", "kind": "directory", "title": {"en": "Work templates", "ko": "작업 템플릿"}, "path": "{KEEL_HOME}/workflow/templates/", "targets": ["claude", "codex"], "stage": "intent"},
+    {"id": "wf:critic-prompts", "kind": "directory", "title": {"en": "Review prompts", "ko": "검토 프롬프트"}, "path": "{KEEL_HOME}/workflow/critic/", "targets": ["claude", "codex"], "stage": "spec"},
+    {"id": "wf:map", "kind": "file", "title": {"en": "Harness map", "ko": "하네스 지도"}, "path": "{KB_PATH}/keel-harness-map.html", "targets": ["claude", "codex"], "stage": "check", "removal": "kept"}
+  ]
+}

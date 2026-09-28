@@ -16,6 +16,7 @@ from . import skills_install
 from .errors import KitValueError
 
 KIT_MARKER = "/.keel/hooks/"
+WF_MARKER = "/.keel/workflow-hooks/"
 
 # Modules the merge-watch refresh job (run by _auto_update_worker.py, long
 # after this install and possibly after the unzipped kit/ folder is gone)
@@ -74,6 +75,32 @@ def _write_json(path: Path, data: dict) -> None:
 
 def _is_kit_command(cmd: str) -> bool:
     return KIT_MARKER in cmd or "/.llm-wiki-kit/hooks/" in cmd
+
+
+def _is_wf_command(cmd: str) -> bool:
+    return WF_MARKER in cmd
+
+
+def _pop_wf_groups(hooks_by_event: dict) -> tuple[dict, dict]:
+    rest, workflow = {}, {}
+    for event, groups in hooks_by_event.items():
+        kept, popped = [], []
+        for group in groups:
+            handlers = group.get("hooks", [])
+            (popped if handlers and all(_is_wf_command(h.get("command", "")) for h in handlers) else kept).append(group)
+        if kept:
+            rest[event] = kept
+        if popped:
+            workflow[event] = popped
+    return rest, workflow
+
+
+def _append_wf_groups(hooks_by_event: dict, workflow: dict, original: dict) -> dict:
+    if not workflow:
+        return hooks_by_event
+    return {event: hooks_by_event.get(event, []) + workflow.get(event, [])
+            for event in dict.fromkeys([*original, *hooks_by_event])
+            if event in hooks_by_event or event in workflow}
 
 
 def _strip_kit_handlers(hooks_by_event: dict) -> dict:
@@ -312,11 +339,11 @@ def codex_trust_status(home: Path, repo_root: Path) -> dict:
     text = config_toml_path.read_text(encoding="utf-8") if config_toml_path.exists() else ""
     trust_state = _parse_codex_trust_state(text)
 
-    script_to_id = {}
+    script_to_id = {"wf_prompt.py": "wf:hook:prompt", "wf_track.py": "wf:hook:track"}
     catalogue_path = Path(repo_root) / "kit" / "catalogue.json"
     if catalogue_path.exists():
         catalogue = json.loads(catalogue_path.read_text(encoding="utf-8"))
-        script_to_id = {h["script"]: h["id"] for h in catalogue}
+        script_to_id.update({h["script"]: h["id"] for h in catalogue})
 
     key_base = str(hooks_json_path)
     hooks: list[dict] = []
@@ -324,7 +351,7 @@ def codex_trust_status(home: Path, repo_root: Path) -> dict:
         for group_idx, grp in enumerate(groups):
             for handler_idx, h in enumerate(grp.get("hooks", [])):
                 cmd = h.get("command", "")
-                if not _is_kit_command(cmd):
+                if not (_is_kit_command(cmd) or _is_wf_command(cmd)):
                     continue
                 script = cmd.rsplit("/", 1)[-1].split('"', 1)[0]
                 hook_id = script_to_id.get(script, script)
@@ -400,8 +427,8 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             _write_sentinel_if_missing(settings_path, {})
         selected = [h for h in _select_hooks(catalogue, hook_ids, "claude")
                     if h["id"] not in handoff_ids or "claude" in handoff_targets or ("grok" in targets and "grok" in handoff_targets)]
-        hooks_by_event = settings.get("hooks", {})
-        hooks_by_event = _strip_kit_handlers(hooks_by_event)
+        original_hooks = settings.get("hooks", {})
+        hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
         entries = [
             {
                 "event": h["event"],
@@ -412,6 +439,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             for h in selected
         ]
         hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=False)
+        hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
         settings["hooks"] = hooks_by_event
         if "automatic-handoff" in hook_ids and "claude" in handoff_targets:
             _set_statusline(settings, home, python, "claude")
@@ -431,8 +459,8 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             _write_sentinel_if_missing(hooks_json_path, {"hooks": {}})
         selected = [h for h in _select_hooks(catalogue, hook_ids, "codex")
                     if h["id"] not in handoff_ids or "codex" in handoff_targets]
-        hooks_by_event = hooks_json.get("hooks", {})
-        hooks_by_event = _strip_kit_handlers(hooks_by_event)
+        original_hooks = hooks_json.get("hooks", {})
+        hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
         entries = [
             {
                 "event": h["event"],
@@ -443,6 +471,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             for h in selected
         ]
         hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=True)
+        hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
         hooks_json["hooks"] = hooks_by_event
         _write_json(hooks_json_path, hooks_json)
         installed["codex"] = [h["id"] for h in selected]
@@ -488,8 +517,8 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             # hook selection.
             selected = [h for h in _select_hooks(catalogue, hook_ids, "claude")
                         if h["id"] not in handoff_ids or "grok" in handoff_targets]
-            hooks_by_event = grok_json.get("hooks", {})
-            hooks_by_event = _strip_kit_handlers(hooks_by_event)
+            original_hooks = grok_json.get("hooks", {})
+            hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
             entries = [
                 {
                     "event": h["event"],
@@ -500,6 +529,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
                 for h in selected
             ]
             hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=False)
+            hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
             grok_json["hooks"] = hooks_by_event
             _write_json(grok_path, grok_json)
             installed["grok"] = [h["id"] for h in selected]

@@ -51,6 +51,22 @@ elif [ "$GREP_RC" -ne 1 ]; then
   exit 1
 fi
 
+if [ -d "$SCAN_DIR/keel-${VERSION}/kit/workflow" ]; then
+  set +e
+  (cd "$SCAN_DIR/keel-${VERSION}" && grep -rIliE '(^|[^a-z])(ji''n|jev)([^a-z]|$)|med''mate|slack|jira|llm-wiki|Sites/' kit/workflow) > "$HITS_FILE" 2>&1
+  GREP_RC=$?
+  set -e
+  if [ "$GREP_RC" -eq 0 ]; then
+    echo "make_dist.sh: workflow contains private references in:" >&2
+    cat "$HITS_FILE" >&2
+    exit 1
+  elif [ "$GREP_RC" -ne 1 ]; then
+    echo "make_dist.sh: workflow word scan failed (grep exit $GREP_RC):" >&2
+    cat "$HITS_FILE" >&2
+    exit 1
+  fi
+fi
+
 SIZE="$(du -h "$ZIP" | cut -f1)"
 GUIDE_SIZE="$(du -h "$GUIDE" | cut -f1)"
 echo "$ZIP ($SIZE)"

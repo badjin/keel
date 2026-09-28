@@ -55,6 +55,9 @@ def run() -> int:
     cwd = payload.get("cwd", ".")
     if not isinstance(cwd, str):
         cwd = "."
+    config = _common.load_config()
+    wiki_path = config.get("wiki_path") if isinstance(config, dict) else None
+    wiki_root = Path(wiki_path).resolve() if wiki_path else None
 
     for name, ti in _common.normalize_tool(tool_name, tool_input, cwd):
         if name not in GUARDED_NAMES:
@@ -64,6 +67,10 @@ def run() -> int:
         file_path = ti.get("file_path")
         if not file_path:
             continue
+        if wiki_root is not None:
+            absolute = Path(file_path if os.path.isabs(file_path) else os.path.join(cwd, file_path)).resolve()
+            if absolute.is_relative_to(wiki_root):
+                continue
         branch = _branch_for(file_path)
         if branch in MAIN_BRANCHES:
             lang = _common.ui_lang(_common.load_config())

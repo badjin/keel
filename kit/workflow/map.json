@@ -1,0 +1,1845 @@
+{
+  "lanes": [
+    {
+      "id": "H",
+      "name": {
+        "en": "Human",
+        "ko": "사람"
+      },
+      "sub": {
+        "en": "user approval",
+        "ko": "사용자 승인"
+      }
+    },
+    {
+      "id": "S",
+      "name": {
+        "en": "Session agent",
+        "ko": "세션 에이전트"
+      },
+      "sub": {
+        "en": "interview and implementation",
+        "ko": "인터뷰와 구현"
+      }
+    },
+    {
+      "id": "R",
+      "name": {
+        "en": "Review run",
+        "ko": "검토 실행"
+      },
+      "sub": {
+        "en": "critic",
+        "ko": "critic"
+      }
+    },
+    {
+      "id": "C",
+      "name": {
+        "en": "Keel hooks and scripts",
+        "ko": "Keel 훅과 스크립트"
+      },
+      "sub": {
+        "en": "deterministic control",
+        "ko": "결정적 제어"
+      }
+    },
+    {
+      "id": "X",
+      "name": {
+        "en": "Files",
+        "ko": "파일"
+      },
+      "sub": {
+        "en": "KB, repo, settings",
+        "ko": "KB, 레포, 설정"
+      }
+    }
+  ],
+  "stages": [
+    {
+      "id": "entry",
+      "num": {
+        "en": "1",
+        "ko": "1"
+      },
+      "short": {
+        "en": "Entry",
+        "ko": "진입"
+      },
+      "name": {
+        "en": "Classify the request",
+        "ko": "요청 분류"
+      },
+      "sum": {
+        "en": "The prompt hook prints a grade and routes the work to FULL or LIGHT.",
+        "ko": "프롬프트 훅이 등급을 출력하고 FULL 또는 LIGHT로 분기합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "session",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "Session start",
+            "ko": "세션 시작"
+          },
+          "desc": {
+            "en": "Keel hook, installed by default: at session start gives the agent the KB location, the start of index.md and the KB rules.",
+            "ko": "기본 설치되는 Keel 훅입니다. 세션 시작 시 에이전트에 지식 베이스 위치, index.md의 시작 부분과 KB 규칙을 알려줍니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_loader.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-loader"
+          ]
+        },
+        {
+          "id": "prompt",
+          "lane": "H",
+          "col": 1,
+          "title": {
+            "en": "Prompt",
+            "ko": "요청"
+          },
+          "desc": {
+            "en": "The user gives the work request.",
+            "ko": "사용자가 작업을 요청합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_prompt.py",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "brief",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "Long prompt brief",
+            "ko": "긴 요청 요약"
+          },
+          "desc": {
+            "en": "Optional Keel hook organizes a long new request.",
+            "ko": "긴 새 요청을 정리하는 선택형 Keel 훅입니다."
+          },
+          "src": "{KEEL_HOME}/hooks/long_prompt_brief.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "long-prompt-brief"
+          ]
+        },
+        {
+          "id": "grade",
+          "lane": "C",
+          "col": 3,
+          "title": {
+            "en": "wf_prompt",
+            "ko": "wf_prompt"
+          },
+          "desc": {
+            "en": "Grades the request and emits the Grade line.",
+            "ko": "요청 등급을 판정해 Grade 줄을 출력합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_prompt.py",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:hook:prompt",
+            "wf:rules"
+          ]
+        },
+        {
+          "id": "route",
+          "lane": "S",
+          "col": 4,
+          "title": {
+            "en": "FULL / LIGHT",
+            "ko": "FULL / LIGHT"
+          },
+          "desc": {
+            "en": "The session follows the printed grade.",
+            "ko": "세션이 출력된 등급을 따릅니다."
+          },
+          "src": "{CLI_HOME}/CLAUDE.md or AGENTS.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:rules"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "session",
+          "prompt",
+          ""
+        ],
+        [
+          "prompt",
+          "grade",
+          ""
+        ],
+        [
+          "prompt",
+          "brief",
+          {
+            "en": "optional",
+            "ko": "선택"
+          },
+          [
+            "alt"
+          ]
+        ],
+        [
+          "brief",
+          "grade",
+          ""
+        ],
+        [
+          "grade",
+          "route",
+          {
+            "en": "Grade",
+            "ko": "등급"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "Only installed hooks and rules are shown.",
+          "ko": "설치되는 훅과 규칙만 표시합니다."
+        }
+      ],
+      "files": [
+        "{KEEL_HOME}/workflow-hooks/wf_prompt.py"
+      ],
+      "install": [
+        "wf:hook:prompt",
+        "wf:rules",
+        "long-prompt-brief",
+        "wiki-loader"
+      ]
+    },
+    {
+      "id": "intent",
+      "num": {
+        "en": "2",
+        "ko": "2"
+      },
+      "short": {
+        "en": "Intent",
+        "ko": "의도"
+      },
+      "name": {
+        "en": "Capture intent",
+        "ko": "의도 기록"
+      },
+      "sum": {
+        "en": "Search the knowledge base, interview, write intent, review it up to three times, then submit it.",
+        "ko": "지식 베이스를 찾고 인터뷰한 뒤 의도를 쓰고 최대 세 번 검토하여 제출합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "kb_search",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Search the knowledge base",
+            "ko": "지식 베이스 찾기"
+          },
+          "desc": {
+            "en": "Read index.md and related pages by path; list them under ## Knowledge base consulted.",
+            "ko": "index.md와 관련 페이지를 경로로 읽고 ## Knowledge base consulted에 적습니다."
+          },
+          "src": "{KB_PATH}/index.md and related pages",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-intent"
+          ]
+        },
+        {
+          "id": "interview",
+          "lane": "S",
+          "col": 1,
+          "title": {
+            "en": "Interview",
+            "ko": "인터뷰"
+          },
+          "desc": {
+            "en": "Clarify outcome and open decisions with the user.",
+            "ko": "사용자와 결과와 미결정을 명확히 합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-intent/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-intent"
+          ]
+        },
+        {
+          "id": "new",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "new",
+            "ko": "new"
+          },
+          "desc": {
+            "en": "Creates the work folder and initial intent.",
+            "ko": "작업 폴더와 최초 intent를 만듭니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (new)",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:templates"
+          ]
+        },
+        {
+          "id": "write",
+          "lane": "X",
+          "col": 3,
+          "title": {
+            "en": "intent.md",
+            "ko": "intent.md"
+          },
+          "desc": {
+            "en": "Record the agreed outcome and evidence.",
+            "ko": "합의한 결과와 근거를 기록합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/intent.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:templates"
+          ]
+        },
+        {
+          "id": "review",
+          "lane": "R",
+          "col": 4,
+          "title": {
+            "en": "critic intent",
+            "ko": "critic intent"
+          },
+          "desc": {
+            "en": "First checks that the listed knowledge base pages were read in this session, then reviews the intent; failures can be revised at most three times.",
+            "ko": "먼저 적힌 지식 베이스 페이지를 이 세션에서 읽었는지 확인한 뒤 의도를 검토합니다. 실패하면 최대 세 번 수정합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (critic intent)",
+          "kind": "d",
+          "tag": "loop",
+          "install": [
+            "wf:cli",
+            "wf:critic-prompts"
+          ]
+        },
+        {
+          "id": "submit",
+          "lane": "C",
+          "col": 5,
+          "title": {
+            "en": "intent submit",
+            "ko": "intent submit"
+          },
+          "desc": {
+            "en": "Checks the passing review and sets awaiting-approval.",
+            "ko": "통과한 검토를 확인하고 awaiting-approval로 바꿉니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (intent submit)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "kb_search",
+          "interview",
+          ""
+        ],
+        [
+          "interview",
+          "new",
+          ""
+        ],
+        [
+          "new",
+          "write",
+          ""
+        ],
+        [
+          "write",
+          "review",
+          ""
+        ],
+        [
+          "review",
+          "write",
+          {
+            "en": "revise, up to 3",
+            "ko": "수정, 최대 3회"
+          },
+          [
+            "loop",
+            "top"
+          ]
+        ],
+        [
+          "review",
+          "submit",
+          {
+            "en": "PASS",
+            "ko": "통과"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "Intent is the durable record of why the work exists.",
+          "ko": "intent는 작업 이유를 남기는 기록입니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/intent.md"
+      ],
+      "install": [
+        "wf:skill:keel-intent",
+        "wf:templates",
+        "wf:critic-prompts"
+      ]
+    },
+    {
+      "id": "approve",
+      "num": {
+        "en": "3",
+        "ko": "3"
+      },
+      "short": {
+        "en": "Approval",
+        "ko": "승인"
+      },
+      "name": {
+        "en": "Approve intent",
+        "ko": "의도 승인"
+      },
+      "sum": {
+        "en": "The agent stops until the user approves the exact intent slug.",
+        "ko": "사용자가 정확한 intent slug를 승인할 때까지 에이전트가 멈춥니다."
+      },
+      "marks": [
+        [
+          "hum",
+          {
+            "en": "Human approval",
+            "ko": "사람 승인"
+          }
+        ]
+      ],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "stop",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Stop for approval",
+            "ko": "승인 대기"
+          },
+          "desc": {
+            "en": "No specification work begins yet.",
+            "ko": "아직 명세 작업을 시작하지 않습니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-intent/SKILL.md",
+          "kind": "",
+          "tag": "gate",
+          "install": [
+            "wf:skill:keel-intent"
+          ]
+        },
+        {
+          "id": "approve_text",
+          "lane": "H",
+          "col": 1,
+          "title": {
+            "en": "approve <slug>",
+            "ko": "approve <slug>"
+          },
+          "desc": {
+            "en": "The user types the approval command.",
+            "ko": "사용자가 승인 명령을 입력합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_prompt.py",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "ledger",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "wf_prompt ledger",
+            "ko": "wf_prompt 원장"
+          },
+          "desc": {
+            "en": "Writes approval to the ledger and intent Status.",
+            "ko": "승인을 원장과 intent Status에 기록합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_prompt.py",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:hook:prompt"
+          ]
+        },
+        {
+          "id": "reapprove",
+          "lane": "C",
+          "col": 3,
+          "title": {
+            "en": "Edit requires approval",
+            "ko": "수정 시 재승인"
+          },
+          "desc": {
+            "en": "A later intent edit invalidates approval and requires another approval.",
+            "ko": "나중에 intent를 수정하면 기존 승인이 무효가 되어 재승인이 필요합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_prompt.py",
+          "kind": "d",
+          "tag": "gate",
+          "install": [
+            "wf:hook:prompt"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "stop",
+          "approve_text",
+          ""
+        ],
+        [
+          "approve_text",
+          "ledger",
+          ""
+        ],
+        [
+          "ledger",
+          "reapprove",
+          {
+            "en": "on edit",
+            "ko": "수정 시"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "Approval is tied to the submitted intent.",
+          "ko": "승인은 제출된 intent에 묶입니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/intent.md"
+      ],
+      "install": [
+        "wf:hook:prompt"
+      ]
+    },
+    {
+      "id": "spec",
+      "num": {
+        "en": "4",
+        "ko": "4"
+      },
+      "short": {
+        "en": "Spec",
+        "ko": "명세"
+      },
+      "name": {
+        "en": "Specify and approve scenarios",
+        "ko": "명세와 시나리오 승인"
+      },
+      "sum": {
+        "en": "Write the spec and acceptance scenarios; critic records the approved scenario list.",
+        "ko": "명세와 인수 시나리오를 쓰고 critic이 승인 목록을 기록합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "spec_write",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Write spec + scenarios",
+            "ko": "명세와 시나리오 작성"
+          },
+          "desc": {
+            "en": "Describe design and numbered acceptance scenarios.",
+            "ko": "설계와 번호가 매겨진 인수 시나리오를 작성합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-spec/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-spec",
+            "wf:templates"
+          ]
+        },
+        {
+          "id": "spec_file",
+          "lane": "X",
+          "col": 1,
+          "title": {
+            "en": "spec.md",
+            "ko": "spec.md"
+          },
+          "desc": {
+            "en": "Stores the specification and scenario list.",
+            "ko": "명세와 시나리오 목록을 저장합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/spec.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "spec_review",
+          "lane": "R",
+          "col": 2,
+          "title": {
+            "en": "critic spec",
+            "ko": "critic spec"
+          },
+          "desc": {
+            "en": "Reviews the spec and scenarios together.",
+            "ko": "명세와 시나리오를 함께 검토합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (critic spec)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:critic-prompts"
+          ]
+        },
+        {
+          "id": "scenario_record",
+          "lane": "X",
+          "col": 3,
+          "title": {
+            "en": "Approved scenarios",
+            "ko": "승인된 시나리오"
+          },
+          "desc": {
+            "en": "The review record holds the approved scenario list.",
+            "ko": "검토 레코드에 승인된 시나리오 목록이 남습니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/records/",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:critic-prompts"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "spec_write",
+          "spec_file",
+          ""
+        ],
+        [
+          "spec_file",
+          "spec_review",
+          ""
+        ],
+        [
+          "spec_review",
+          "scenario_record",
+          {
+            "en": "PASS",
+            "ko": "통과"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "The final check uses the approved scenario list.",
+          "ko": "최종 검증은 승인된 시나리오 목록을 사용합니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/spec.md"
+      ],
+      "install": [
+        "wf:skill:keel-spec",
+        "wf:critic-prompts"
+      ]
+    },
+    {
+      "id": "plan",
+      "num": {
+        "en": "5",
+        "ko": "5"
+      },
+      "short": {
+        "en": "Plan",
+        "ko": "계획"
+      },
+      "name": {
+        "en": "Plan implementation",
+        "ko": "구현 계획"
+      },
+      "sum": {
+        "en": "Use the installed format and pass critic plan before running.",
+        "ko": "설치된 형식을 사용하고 실행 전 critic plan을 통과합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "plan_write",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Write phase plan",
+            "ko": "단계 계획 작성"
+          },
+          "desc": {
+            "en": "Follow the plan format and map phases to scenarios.",
+            "ko": "계획 형식을 따르고 단계와 시나리오를 연결합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-plan/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-plan",
+            "wf:templates"
+          ]
+        },
+        {
+          "id": "plan_file",
+          "lane": "X",
+          "col": 1,
+          "title": {
+            "en": "plan.md",
+            "ko": "plan.md"
+          },
+          "desc": {
+            "en": "Stores phase tasks and test commands.",
+            "ko": "단계 작업과 테스트 명령을 저장합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/plan.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "plan_review",
+          "lane": "R",
+          "col": 2,
+          "title": {
+            "en": "critic plan",
+            "ko": "critic plan"
+          },
+          "desc": {
+            "en": "Checks the plan before implementation.",
+            "ko": "구현 전에 계획을 검토합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (critic plan)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:critic-prompts"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "plan_write",
+          "plan_file",
+          ""
+        ],
+        [
+          "plan_file",
+          "plan_review",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "A passing plan review gates implementation.",
+          "ko": "계획 검토 통과가 구현의 조건입니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/plan.md"
+      ],
+      "install": [
+        "wf:skill:keel-plan",
+        "wf:templates",
+        "wf:critic-prompts"
+      ]
+    },
+    {
+      "id": "run",
+      "num": {
+        "en": "6",
+        "ko": "6"
+      },
+      "short": {
+        "en": "Run",
+        "ko": "실행"
+      },
+      "name": {
+        "en": "Implement each phase",
+        "ko": "각 단계 구현"
+      },
+      "sum": {
+        "en": "Start a work branch, implement, then run tests, commit, review, and tick each phase.",
+        "ko": "작업 브랜치를 만든 뒤 구현하고 각 단계에서 테스트, 커밋, 검토, 체크합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "start",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "run start",
+            "ko": "run start"
+          },
+          "desc": {
+            "en": "Creates the work branch.",
+            "ko": "작업 브랜치를 만듭니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (run start)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli"
+          ]
+        },
+        {
+          "id": "implement",
+          "lane": "S",
+          "col": 1,
+          "title": {
+            "en": "Implement",
+            "ko": "구현"
+          },
+          "desc": {
+            "en": "Carry out the phase tasks.",
+            "ko": "단계 작업을 수행합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-run/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-run"
+          ]
+        },
+        {
+          "id": "phase",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "run phase N",
+            "ko": "run phase N"
+          },
+          "desc": {
+            "en": "Runs declared tests and commits the phase.",
+            "ko": "선언된 테스트를 실행하고 단계를 커밋합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (run phase)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli"
+          ]
+        },
+        {
+          "id": "phase_review",
+          "lane": "R",
+          "col": 3,
+          "title": {
+            "en": "critic phase",
+            "ko": "critic phase"
+          },
+          "desc": {
+            "en": "Reviews the committed phase; a FAIL loop allows at most two retries.",
+            "ko": "커밋된 단계를 검토하며 FAIL 시 최대 두 번 재시도합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (critic phase)",
+          "kind": "d",
+          "tag": "loop",
+          "install": [
+            "wf:cli",
+            "wf:critic-prompts"
+          ]
+        },
+        {
+          "id": "tick",
+          "lane": "X",
+          "col": 4,
+          "title": {
+            "en": "Tick phase",
+            "ko": "단계 체크"
+          },
+          "desc": {
+            "en": "Marks the passing phase in the plan.",
+            "ko": "통과한 단계를 계획에서 체크합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/plan.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        }
+      ],
+      "edges": [
+        [
+          "start",
+          "implement",
+          ""
+        ],
+        [
+          "implement",
+          "phase",
+          ""
+        ],
+        [
+          "phase",
+          "phase_review",
+          {
+            "en": "tests + commit",
+            "ko": "테스트 + 커밋"
+          }
+        ],
+        [
+          "phase_review",
+          "implement",
+          {
+            "en": "FAIL, max 2",
+            "ko": "실패, 최대 2회"
+          },
+          [
+            "loop",
+            "top"
+          ]
+        ],
+        [
+          "phase_review",
+          "tick",
+          {
+            "en": "PASS",
+            "ko": "통과"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "The phase runner owns the test, commit, review, and checklist sequence.",
+          "ko": "단계 실행기가 테스트, 커밋, 검토, 체크 순서를 맡습니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/plan.md"
+      ],
+      "install": [
+        "wf:cli",
+        "wf:skill:keel-run",
+        "wf:critic-prompts"
+      ]
+    },
+    {
+      "id": "verify",
+      "num": {
+        "en": "7",
+        "ko": "7"
+      },
+      "short": {
+        "en": "Verify",
+        "ko": "검증"
+      },
+      "name": {
+        "en": "Run approved scenarios",
+        "ko": "승인된 시나리오 실행"
+      },
+      "sum": {
+        "en": "Execute the approved scenarios, write results JSON, and run verify.",
+        "ko": "승인된 시나리오를 실행하고 결과 JSON을 쓴 뒤 verify를 실행합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "scenarios",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Run scenarios",
+            "ko": "시나리오 실행"
+          },
+          "desc": {
+            "en": "Execute the approved list against the result.",
+            "ko": "승인된 목록을 결과물에 대해 실행합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-run/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:skill:keel-run"
+          ]
+        },
+        {
+          "id": "results",
+          "lane": "X",
+          "col": 1,
+          "title": {
+            "en": "Results JSON",
+            "ko": "결과 JSON"
+          },
+          "desc": {
+            "en": "Stores the scenario outcomes for the verifier.",
+            "ko": "검증기가 읽을 시나리오 결과를 저장합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/results.json",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "verify_cmd",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "verify",
+            "ko": "verify"
+          },
+          "desc": {
+            "en": "Checks the scenario results against the approved list.",
+            "ko": "시나리오 결과를 승인 목록과 대조합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (verify)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:skill:keel-run"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "scenarios",
+          "results",
+          ""
+        ],
+        [
+          "results",
+          "verify_cmd",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "Verification follows the spec review's approved scenarios.",
+          "ko": "검증은 명세 검토가 승인한 시나리오를 따릅니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/results.json"
+      ],
+      "install": [
+        "wf:cli",
+        "wf:skill:keel-run"
+      ]
+    },
+    {
+      "id": "audit",
+      "num": {
+        "en": "8",
+        "ko": "8"
+      },
+      "short": {
+        "en": "Audit",
+        "ko": "감사"
+      },
+      "name": {
+        "en": "Close reviewed work",
+        "ko": "검토된 작업 종료"
+      },
+      "sum": {
+        "en": "Audit checks required records and sets intent Status to done.",
+        "ko": "audit가 필수 레코드를 확인하고 intent Status를 done으로 바꿉니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "audit_cmd",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "audit",
+            "ko": "audit"
+          },
+          "desc": {
+            "en": "Checks reviews, phases, and verification records.",
+            "ko": "검토, 단계, 검증 레코드를 확인합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (audit)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:skill:keel-run"
+          ]
+        },
+        {
+          "id": "done",
+          "lane": "X",
+          "col": 1,
+          "title": {
+            "en": "Status done",
+            "ko": "Status done"
+          },
+          "desc": {
+            "en": "Closes the intent after a passing audit.",
+            "ko": "감사를 통과하면 intent를 닫습니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/intent.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        }
+      ],
+      "edges": [
+        [
+          "audit_cmd",
+          "done",
+          {
+            "en": "PASS",
+            "ko": "통과"
+          }
+        ]
+      ],
+      "points": [
+        {
+          "en": "A passing audit is required before archive.",
+          "ko": "보관 전에 감사 통과가 필요합니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/intent.md"
+      ],
+      "install": [
+        "wf:cli",
+        "wf:skill:keel-run"
+      ]
+    },
+    {
+      "id": "archive",
+      "num": {
+        "en": "9",
+        "ko": "9"
+      },
+      "short": {
+        "en": "KB archive",
+        "ko": "위키 보관"
+      },
+      "name": {
+        "en": "File the work into the knowledge base",
+        "ko": "작업을 지식 베이스에 정리"
+      },
+      "sum": {
+        "en": "Keep the work folder in the knowledge base, add an archive row and index link; at session end, Keel updates related KB pages.",
+        "ko": "작업 폴더를 지식 베이스에 두고 보관 행과 색인 링크를 추가합니다. 세션 끝에는 Keel이 관련 KB 페이지를 갱신합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "work_folder",
+          "lane": "X",
+          "col": 0,
+          "title": {
+            "en": "Work folder",
+            "ko": "작업 폴더"
+          },
+          "desc": {
+            "en": "Keeps the work documents in the knowledge base.",
+            "ko": "작업 문서를 지식 베이스에 보관합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "archive_cmd",
+          "lane": "C",
+          "col": 1,
+          "title": {
+            "en": "archive",
+            "ko": "archive"
+          },
+          "desc": {
+            "en": "Indexes the finished work folder.",
+            "ko": "완료된 작업 폴더를 색인합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (archive)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:skill:keel-run"
+          ]
+        },
+        {
+          "id": "archive_row",
+          "lane": "X",
+          "col": 2,
+          "title": {
+            "en": "Archive row",
+            "ko": "보관 행"
+          },
+          "desc": {
+            "en": "Adds a row for the work documents.",
+            "ko": "작업 문서에 대한 행을 추가합니다."
+          },
+          "src": "{KB_PATH}/wiki/work-archive.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "index_link",
+          "lane": "X",
+          "col": 3,
+          "title": {
+            "en": "Index link",
+            "ko": "색인 링크"
+          },
+          "desc": {
+            "en": "Links the archive from the wiki index.",
+            "ko": "위키 색인에서 보관 문서를 연결합니다."
+          },
+          "src": "{KB_PATH}/index.md",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "auto_update",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "Auto update",
+            "ko": "자동 갱신"
+          },
+          "desc": {
+            "en": "Keel hook, installed by default: at session end writes what the session learned into related KB pages.",
+            "ko": "기본 설치되는 Keel 훅입니다. 세션 끝에 배운 내용을 관련 KB 페이지에 기록합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_auto_update.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-auto-update"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "work_folder",
+          "archive_cmd",
+          ""
+        ],
+        [
+          "archive_cmd",
+          "archive_row",
+          ""
+        ],
+        [
+          "archive_row",
+          "index_link",
+          ""
+        ],
+        [
+          "work_folder",
+          "auto_update",
+          {
+            "en": "at session end",
+            "ko": "세션 끝에"
+          },
+          [
+            "alt"
+          ]
+        ]
+      ],
+      "points": [
+        {
+          "en": "The work folder stays under raw/work.",
+          "ko": "작업 폴더는 raw/work 아래에 남습니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/",
+        "{KB_PATH}/wiki/work-archive.md",
+        "{KB_PATH}/index.md"
+      ],
+      "install": [
+        "wf:cli",
+        "wf:skill:keel-run",
+        "wiki-auto-update"
+      ]
+    }
+  ],
+  "side": [
+    {
+      "id": "light",
+      "num": {
+        "en": "L",
+        "ko": "L"
+      },
+      "short": {
+        "en": "LIGHT",
+        "ko": "LIGHT"
+      },
+      "name": {
+        "en": "Light work",
+        "ko": "가벼운 작업"
+      },
+      "sum": {
+        "en": "LIGHT work skips the FULL pipeline and receives critic light review.",
+        "ko": "LIGHT 작업은 FULL 절차를 건너뛰고 critic light 검토를 받습니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "light_work",
+          "lane": "S",
+          "col": 0,
+          "title": {
+            "en": "Implement LIGHT",
+            "ko": "LIGHT 구현"
+          },
+          "desc": {
+            "en": "Complete the scoped light change.",
+            "ko": "범위를 정한 가벼운 변경을 완료합니다."
+          },
+          "src": "{CLI_HOME}/CLAUDE.md or AGENTS.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:rules"
+          ]
+        },
+        {
+          "id": "light_critic",
+          "lane": "R",
+          "col": 1,
+          "title": {
+            "en": "critic light",
+            "ko": "critic light"
+          },
+          "desc": {
+            "en": "Reviews the LIGHT result.",
+            "ko": "LIGHT 결과를 검토합니다."
+          },
+          "src": "{KEEL_HOME}/workflow/keel_wf.py (critic light)",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:cli",
+            "wf:critic-prompts"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "light_work",
+          "light_critic",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "LIGHT still receives an independent review.",
+          "ko": "LIGHT도 독립 검토를 받습니다."
+        }
+      ],
+      "files": [
+        "{KEEL_HOME}/workflow/critic/light.en.md"
+      ],
+      "install": [
+        "wf:cli",
+        "wf:critic-prompts"
+      ]
+    },
+    {
+      "id": "handoff",
+      "num": {
+        "en": "H",
+        "ko": "H"
+      },
+      "short": {
+        "en": "Handoff",
+        "ko": "인계"
+      },
+      "name": {
+        "en": "Carry work between sessions",
+        "ko": "세션 간 작업 인계"
+      },
+      "sum": {
+        "en": "Keel handoff hooks restore context while wf_track carries work ownership.",
+        "ko": "Keel 인계 훅이 맥락을 복원하고 wf_track이 작업 소유권을 이어 줍니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "handoff_save",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "Automatic handoff",
+            "ko": "자동 인계"
+          },
+          "desc": {
+            "en": "Captures current session context.",
+            "ko": "현재 세션 맥락을 저장합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/handoff_gate.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "automatic-handoff"
+          ]
+        },
+        {
+          "id": "handoff_restore",
+          "lane": "C",
+          "col": 1,
+          "title": {
+            "en": "Restore handoff",
+            "ko": "인계 복원"
+          },
+          "desc": {
+            "en": "Restores saved context in the next session.",
+            "ko": "다음 세션에서 저장된 맥락을 복원합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/handoff_restore.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "automatic-handoff-restore"
+          ]
+        },
+        {
+          "id": "ownership",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "Work ownership",
+            "ko": "작업 소유권"
+          },
+          "desc": {
+            "en": "Tracks which work the session has touched.",
+            "ko": "세션이 만진 작업을 추적합니다."
+          },
+          "src": "{KEEL_HOME}/workflow-hooks/wf_track.py",
+          "kind": "d",
+          "tag": "",
+          "install": [
+            "wf:hook:track"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "handoff_save",
+          "handoff_restore",
+          ""
+        ],
+        [
+          "handoff_restore",
+          "ownership",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "Ownership is carried by installed tracking, not guessed from the folder.",
+          "ko": "소유권은 폴더 추측이 아니라 설치된 추적 기능으로 이어집니다."
+        }
+      ],
+      "files": [
+        "{KEEL_HOME}/workflow-hooks/wf_track.py"
+      ],
+      "install": [
+        "automatic-handoff",
+        "automatic-handoff-restore",
+        "wf:hook:track"
+      ]
+    },
+    {
+      "id": "kb",
+      "num": {
+        "en": "K",
+        "ko": "K"
+      },
+      "short": {
+        "en": "Knowledge base",
+        "ko": "지식베이스"
+      },
+      "name": {
+        "en": "Read and maintain the wiki",
+        "ko": "위키 읽기와 유지"
+      },
+      "sum": {
+        "en": "Keel wiki hooks load, log, capture, update, and ask after wiki checks; work lives under raw/work.",
+        "ko": "Keel 위키 훅이 로드, 기록, 캡처, 갱신과 조회 후 질문을 맡고 작업은 raw/work에 저장됩니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "wiki_loader",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "Wiki loader",
+            "ko": "위키 로더"
+          },
+          "desc": {
+            "en": "At session start, gives the agent the KB location, the start of index.md and the KB rules.",
+            "ko": "세션 시작 시 에이전트에 지식 베이스 위치, index.md의 시작 부분과 KB 규칙을 알려줍니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_loader.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-loader"
+          ]
+        },
+        {
+          "id": "wiki_trigger",
+          "lane": "C",
+          "col": 1,
+          "title": {
+            "en": "Wiki trigger",
+            "ko": "위키 트리거"
+          },
+          "desc": {
+            "en": "Detects requests to update the knowledge base.",
+            "ko": "지식 베이스를 갱신해 달라는 요청을 감지합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_trigger.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-trigger"
+          ]
+        },
+        {
+          "id": "wiki_log",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "Read log",
+            "ko": "읽기 기록"
+          },
+          "desc": {
+            "en": "Records wiki reads.",
+            "ko": "위키 읽기를 기록합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_read_log.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-read-log"
+          ]
+        },
+        {
+          "id": "wiki_capture",
+          "lane": "C",
+          "col": 3,
+          "title": {
+            "en": "Session capture",
+            "ko": "세션 캡처"
+          },
+          "desc": {
+            "en": "Captures session material for the KB.",
+            "ko": "KB를 위해 세션 자료를 저장합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/session_capture.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "session-capture"
+          ]
+        },
+        {
+          "id": "wiki_update",
+          "lane": "C",
+          "col": 4,
+          "title": {
+            "en": "Auto update",
+            "ko": "자동 갱신"
+          },
+          "desc": {
+            "en": "Updates wiki knowledge from captured work.",
+            "ko": "저장된 작업을 통해 위키 지식을 갱신합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/wiki_auto_update.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wiki-auto-update"
+          ]
+        },
+        {
+          "id": "wiki_ask",
+          "lane": "C",
+          "col": 5,
+          "title": {
+            "en": "Ask after wiki",
+            "ko": "위키 확인 후 질문"
+          },
+          "desc": {
+            "en": "Checks wiki context before asking the user.",
+            "ko": "사용자에게 묻기 전에 위키 맥락을 확인합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/ask_after_wiki.py",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "ask-after-wiki"
+          ]
+        },
+        {
+          "id": "work_folder",
+          "lane": "X",
+          "col": 4,
+          "title": {
+            "en": "Work folder",
+            "ko": "작업 폴더"
+          },
+          "desc": {
+            "en": "Keeps workflow documents under raw/work.",
+            "ko": "워크플로 문서를 raw/work 아래에 보관합니다."
+          },
+          "src": "{KB_PATH}/raw/work/{date}-{slug}/",
+          "kind": "",
+          "tag": "",
+          "install": []
+        },
+        {
+          "id": "harness_check",
+          "lane": "S",
+          "col": 5,
+          "title": {
+            "en": "Check against the map",
+            "ko": "지도와 대조"
+          },
+          "desc": {
+            "en": "Compares the installed harness with the map in the knowledge base.",
+            "ko": "설치된 하네스를 지식 베이스의 지도와 대조합니다."
+          },
+          "src": "{CLI_HOME}/skills/keel-check/SKILL.md",
+          "kind": "",
+          "tag": "",
+          "install": [
+            "wf:map",
+            "wf:skill:keel-check"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "wiki_loader",
+          "wiki_trigger",
+          ""
+        ],
+        [
+          "wiki_trigger",
+          "wiki_log",
+          ""
+        ],
+        [
+          "wiki_log",
+          "wiki_capture",
+          ""
+        ],
+        [
+          "wiki_capture",
+          "wiki_update",
+          ""
+        ],
+        [
+          "wiki_update",
+          "wiki_ask",
+          ""
+        ],
+        [
+          "wiki_ask",
+          "work_folder",
+          ""
+        ],
+        [
+          "work_folder",
+          "harness_check",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "The KB stores the work artifacts as well as general wiki knowledge.",
+          "ko": "KB는 일반 위키 지식과 작업 산출물을 함께 저장합니다."
+        }
+      ],
+      "files": [
+        "{KB_PATH}/raw/work/{date}-{slug}/",
+        "{KB_PATH}/keel-harness-map.html"
+      ],
+      "install": [
+        "wiki-loader",
+        "wiki-trigger",
+        "wiki-read-log",
+        "session-capture",
+        "wiki-auto-update",
+        "ask-after-wiki",
+        "wf:map",
+        "wf:skill:keel-check"
+      ]
+    },
+    {
+      "id": "guards",
+      "num": {
+        "en": "G",
+        "ko": "G"
+      },
+      "short": {
+        "en": "Guards",
+        "ko": "가드"
+      },
+      "name": {
+        "en": "Keep claims and writes grounded",
+        "ko": "발화와 쓰기 검증"
+      },
+      "sum": {
+        "en": "Keel guards prevent speculation, demand verification, and protect the main branch except for KB work.",
+        "ko": "Keel 가드가 추측을 막고 검증을 요구하며 KB 작업을 제외한 메인 브랜치를 보호합니다."
+      },
+      "marks": [],
+      "badges": [],
+      "nodes": [
+        {
+          "id": "no_spec",
+          "lane": "C",
+          "col": 0,
+          "title": {
+            "en": "No speculation",
+            "ko": "추측 금지"
+          },
+          "desc": {
+            "en": "Requires evidence for claims.",
+            "ko": "발화에 근거를 요구합니다."
+          },
+          "src": "{KEEL_HOME}/hooks/no_speculation.py",
+          "kind": "d",
+          "tag": "deny",
+          "install": [
+            "no-speculation"
+          ]
+        },
+        {
+          "id": "verify_done",
+          "lane": "C",
+          "col": 1,
+          "title": {
+            "en": "Verify before done",
+            "ko": "완료 전 검증"
+          },
+          "desc": {
+            "en": "Blocks unsupported completion claims.",
+            "ko": "근거 없는 완료 선언을 막습니다."
+          },
+          "src": "{KEEL_HOME}/hooks/verify_before_done.py",
+          "kind": "d",
+          "tag": "deny",
+          "install": [
+            "verify-before-done"
+          ]
+        },
+        {
+          "id": "main_guard",
+          "lane": "C",
+          "col": 2,
+          "title": {
+            "en": "Main branch guard",
+            "ko": "메인 브랜치 가드"
+          },
+          "desc": {
+            "en": "Blocks direct product-repo work on main; KB work is exempt.",
+            "ko": "제품 레포의 메인 브랜치 직접 작업을 막으며 KB 작업은 면제됩니다."
+          },
+          "src": "{KEEL_HOME}/hooks/main_branch_guard.py",
+          "kind": "d",
+          "tag": "deny",
+          "install": [
+            "main-branch-guard"
+          ]
+        }
+      ],
+      "edges": [
+        [
+          "no_spec",
+          "verify_done",
+          ""
+        ],
+        [
+          "verify_done",
+          "main_guard",
+          ""
+        ]
+      ],
+      "points": [
+        {
+          "en": "The KB exemption applies to the branch guard only.",
+          "ko": "KB 면제는 브랜치 가드에만 적용됩니다."
+        }
+      ],
+      "files": [
+        "{KEEL_HOME}/hooks/main_branch_guard.py"
+      ],
+      "install": [
+        "no-speculation",
+        "verify-before-done",
+        "main-branch-guard"
+      ]
+    }
+  ],
+  "note": {
+    "en": "This map is a source of ideas, not a rulebook. Everyone's situation and constraints differ, so no single workflow fits everyone. What you see here is a common flow for everyday development work — take what helps and adapt it to your own way of working.",
+    "ko": "이 지도는 정답이 아니라 영감을 주기 위한 예시입니다. 워크플로우는 사람마다 상황과 조건이 달라서 모두에게 똑같이 맞출 수 없습니다. 여기 담긴 것은 일반적인 개발 작업에 쓰이는 흐름이니, 도움이 되는 부분을 가져가 자기에게 맞게 바꿔 쓰세요."
+  }
+}

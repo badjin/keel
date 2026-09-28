@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import secrets
 import shutil
 import subprocess
@@ -22,6 +23,8 @@ sys.path.insert(0, str(REPO_ROOT))
 from app.jobs import JobRunner  # noqa: E402
 from kit import github, history, install_hooks, llm_pass, local_index, obsidian, render_repo, skills_install, wiki_init  # noqa: E402
 from kit.errors import KitRuntimeError, KitValueError, message as err_message, progress as kit_progress  # noqa: E402
+from kit.workflow import install as workflow_install  # noqa: E402
+from kit.workflow import map_render  # noqa: E402
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -226,12 +229,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- auth / dispatch ----
 
+    def _host_ok(self) -> bool:
+        return self.headers.get("Host", "") in {f"127.0.0.1:{self.state.port}", f"localhost:{self.state.port}"}
+
     def _authorized(self) -> bool:
         token = self.headers.get("X-Kit-Token") or ""
-        host = self.headers.get("Host", "")
-        allowed = {f"127.0.0.1:{self.state.port}", f"localhost:{self.state.port}"}
         token_ok = secrets.compare_digest(token.encode("utf-8"), self.state.token.encode("utf-8"))
-        return token_ok and host in allowed
+        return token_ok and self._host_ok()
 
     def _lang(self) -> str:
         lang = self.headers.get("X-Kit-Lang") or ""
@@ -263,6 +267,26 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith("/static/"):
             self._serve_static(path[len("/static"):])
+            return
+        if path == "/api/workflow/map-view":
+            query = parse_qs(urlsplit(self.path).query)
+            query_token = query.get("t", [""])[0]
+            if not secrets.compare_digest(query_token.encode("utf-8"), self.state.token.encode("utf-8")) or not self._host_ok():
+                lang = "ko" if query.get("lang", ["en"])[0] == "ko" else "en"
+                message = ("설치기 링크가 만료되었습니다. 터미널에 표시된 주소를 다시 열어 주세요." if lang == "ko" else
+                           "This installer link has expired. Reopen the address shown in the terminal.")
+                body = f'<!doctype html><html lang="{lang}"><meta charset="utf-8"><p>{message}</p></html>'.encode("utf-8")
+                self.send_response(403)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            try:
+                self._api_workflow_map_view()
+            except Exception as exc:  # noqa: BLE001 - same API error boundary as _route_get
+                self._send_error(400, exc)
             return
         if not self._authorized():
             self._forbidden()
@@ -325,6 +349,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._api_jobs_get(path[len("/api/jobs/"):])
             elif path == "/api/hooks/codex-trust":
                 self._api_hooks_codex_trust()
+            elif path == "/api/workflow/status":
+                self._api_workflow_status()
             else:
                 self._send_json(404, {"error": err_message("not_found", self._lang())})
         except Exception as exc:  # noqa: BLE001 - ValueError and others both map to 400
@@ -341,6 +367,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._api_hooks_install(body)
             elif path == "/api/hooks/uninstall":
                 self._api_hooks_uninstall(body)
+            elif path == "/api/workflow/install":
+                self._api_workflow_install(body)
+            elif path == "/api/workflow/uninstall":
+                self._api_workflow_uninstall()
+            elif path == "/api/workflow/map":
+                self._api_workflow_map()
             elif path == "/api/wiki/init":
                 self._api_wiki_init(body)
             elif path == "/api/wiki/local":
@@ -423,6 +455,56 @@ class Handler(BaseHTTPRequestHandler):
         result = install_hooks.uninstall(state.home, targets, remove_skills=remove_skills)
         self._send_json(200, result)
 
+    def _api_workflow_status(self) -> None:
+        manifest = json.loads((REPO_ROOT / "kit" / "workflow" / "manifest.json").read_text(encoding="utf-8"))
+        config = self.state.config()
+        self._send_json(200, {
+            **workflow_install.status(self.state.home),
+            "clis": {"claude": bool(shutil.which("claude")), "codex": bool(shutil.which("codex"))},
+            "kb_ready": bool(config),
+            "manifest": manifest["items"],
+            "paths": self._workflow_paths(),
+        })
+
+    def _workflow_paths(self) -> dict:
+        config = self.state.config()
+        return {
+            "KEEL_HOME": str(self.state.home / ".keel"),
+            "KB_PATH": str(Path(config["wiki_path"]).expanduser().resolve()) if config else "{KB_PATH}",
+            "CLI_HOME": {target: str(self.state.home / f".{target}") for target in ("claude", "codex")},
+        }
+
+    def _api_workflow_map_view(self) -> None:
+        workflow = REPO_ROOT / "kit" / "workflow"
+        map_data = json.loads((workflow / "map.json").read_text(encoding="utf-8"))
+        manifest = json.loads((workflow / "manifest.json").read_text(encoding="utf-8"))
+        catalogue = json.loads((REPO_ROOT / "kit" / "catalogue.json").read_text(encoding="utf-8"))
+        query = parse_qs(urlsplit(self.path).query)
+        html = map_render.render(map_data, manifest, catalogue,
+                                 query.get("lang", ["en"])[0], self._workflow_paths(), embed=True).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(html)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(html)
+
+    def _api_workflow_install(self, body: dict) -> None:
+        result = workflow_install.install(self.state.home, REPO_ROOT, body.get("targets", []),
+                                          body.get("critic_cli", ""), sys.executable)
+        self._send_json(200, result)
+
+    def _api_workflow_map(self) -> None:
+        if not self.state.config():
+            raise KitValueError("wiki_not_ready")
+        path = map_render.write_map(self.state.home, repo_root=REPO_ROOT)
+        if os.environ.get("BROWSER") != "/usr/bin/true":
+            webbrowser.open(path.as_uri())
+        self._send_json(200, {"path": str(path)})
+
+    def _api_workflow_uninstall(self) -> None:
+        self._send_json(200, workflow_install.uninstall(self.state.home))
+
     # ---- 5.2 endpoints ----
 
     def _api_wiki_init(self, body: dict) -> None:
@@ -497,6 +579,7 @@ class Handler(BaseHTTPRequestHandler):
             "hooks": hooks,
             "skills": skills,
             "repos": repos,
+            "workflow": workflow_install.status(state.home),
         }
         result_path = state.home / ".keel" / "install-result.json"
         result_path.parent.mkdir(parents=True, exist_ok=True)

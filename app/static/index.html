@@ -35,8 +35,11 @@
       <button class="tab" role="tab" id="tab-btn-github" aria-controls="panel-github" aria-selected="false" data-tab="github">
         <span class="step-marker" aria-hidden="true"></span><span class="card-number">03</span><span class="tab-label" data-i18n="tabs.github">GitHub</span><span class="tab-optional" data-i18n="tabs.optional">optional</span>
       </button>
+      <button class="tab" role="tab" id="tab-btn-workflow" aria-controls="panel-workflow" aria-selected="false" data-tab="workflow">
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">04</span><span class="tab-label" data-i18n="tabs.workflow">Workflow</span><span class="tab-optional" data-i18n="tabs.optional">optional</span>
+      </button>
       <button class="tab" role="tab" id="tab-btn-finish" aria-controls="panel-finish" aria-selected="false" data-tab="finish">
-        <span class="step-marker" aria-hidden="true"></span><span class="card-number">04</span><span class="tab-label" data-i18n="tabs.finish">Finish</span>
+        <span class="step-marker" aria-hidden="true"></span><span class="card-number">05</span><span class="tab-label" data-i18n="tabs.finish">Finish</span>
       </button>
     </nav>
 
@@ -275,18 +278,49 @@
         <p class="inline-error" id="gh-run-error"></p>
 
         <div class="ledger" id="gh-log"></div>
-        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="wiki"><span data-i18n="nav.prev">← Back</span></button><button class="btn secondary" type="button" data-next="finish"><span data-i18n="nav.nextFinish">Next: Finish →</span></button></div>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="wiki"><span data-i18n="nav.prev">← Back</span></button><button class="btn secondary" type="button" data-next="workflow"><span data-i18n="nav.nextWorkflow">Next: Workflow →</span></button></div>
       </section>
 
-      <!-- ===================== Panel 4: Finish ===================== -->
+      <!-- ===================== Panel 4: Workflow ===================== -->
+      <section class="panel" id="panel-workflow" role="tabpanel" aria-labelledby="tab-btn-workflow" hidden>
+        <p class="breadcrumb" data-i18n="workflow.breadcrumb">Install / Workflow</p>
+        <h2><span class="step-num">4.</span> <span data-i18n="workflow.heading">Workflow (optional)</span></h2>
+        <p class="lede" data-i18n="workflow.lede">Workflow adds staged intent, review, planning, and verification to your AI coding sessions. It is optional and removable as one bundle. It needs the Knowledge Base step first.</p>
+
+        <iframe id="wf-map" title="Workflow pipeline map" scrolling="no" data-i18n-attr='{"title":"workflow.mapTitle"}'></iframe>
+        <h3 id="wf-manifest-heading" data-i18n="workflow.manifestHeading">What will be installed</h3>
+        <ul class="summary-list" id="wf-manifest" aria-labelledby="wf-manifest-heading"></ul>
+
+        <h3 data-i18n="workflow.criticHeading">Review CLI</h3>
+        <div class="choice-cards" role="radiogroup" aria-label="Review CLI" data-i18n-attr='{"aria-label":"workflow.criticHeading"}'>
+          <label class="choice-card"><input type="radio" name="wf-critic" value="claude" disabled>Claude Code</label>
+          <label class="choice-card"><input type="radio" name="wf-critic" value="codex" disabled>Codex</label>
+        </div>
+        <p class="field-note" data-i18n="workflow.usageNote">Each review runs the chosen CLI once more with your own login — the intent review up to 3 times, the spec and plan reviews, up to 2 per plan phase, and one per LIGHT change. A subscription login uses your plan's usage limits; an API key (including <code>ANTHROPIC_API_KEY</code> or <code>CODEX_API_KEY</code> in your environment) is billed to that API account.</p>
+        <p class="field-note warn" id="wf-needs-kb" hidden data-i18n="workflow.needsKb">Create the Knowledge Base before installing Workflow.</p>
+        <p class="field-note warn" id="wf-needs-cli" hidden data-i18n="workflow.needsCli">Select Claude Code or Codex on the Hooks step.</p>
+        <p class="field-note warn" id="wf-needs-review-cli" hidden data-i18n="workflow.needsReviewCli">Install Claude Code or Codex to run reviews.</p>
+        <div class="btn-row">
+          <button class="btn" id="btn-wf-install" disabled><span class="label" data-i18n="workflow.installBtn">Install workflow</span><span class="spinner">…</span></button>
+          <button class="btn danger" id="btn-wf-uninstall"><span class="label" data-i18n="workflow.uninstallBtn">Remove workflow</span><span class="spinner">…</span></button>
+        </div>
+        <ul class="summary-list" id="wf-result"></ul>
+        <p class="inline-error" id="wf-error"></p>
+        <div id="wf-codex-trust"></div>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="github"><span data-i18n="nav.prev">← Back</span></button><button class="btn secondary" type="button" data-next="finish"><span data-i18n="nav.nextFinish">Next: Finish →</span></button></div>
+      </section>
+
+      <!-- ===================== Panel 5: Finish ===================== -->
       <section class="panel" id="panel-finish" role="tabpanel" aria-labelledby="tab-btn-finish" hidden>
         <p class="breadcrumb" data-i18n="finish.breadcrumb">Install / Finish</p>
-        <h2><span class="step-num">4.</span> <span data-i18n="tabs.finish">Finish</span></h2>
+        <h2><span class="step-num">5.</span> <span data-i18n="tabs.finish">Finish</span></h2>
         <div class="btn-row" id="finish-summary-section">
           <button class="btn" id="btn-finish"><span class="label" data-i18n="finish.finishBtn">Finish install</span><span class="spinner">…</span></button>
         </div>
         <p class="inline-error" id="finish-error"></p>
         <ul class="summary-list" id="finish-summary"></ul>
+        <div class="btn-row"><button class="btn secondary" type="button" id="btn-open-map"><span class="label" data-i18n="finish.openMapBtn">Open the harness map</span><span class="spinner">…</span></button></div>
+        <p class="field-note" id="finish-map-path" hidden></p>
         <p class="field-note" data-i18n="finish.lintNote">A health check runs about once a month after a session ends and fixes
           clear cases of orphan pages and broken links on its own — say "wiki health" to run it now instead of waiting.</p>
 
@@ -310,13 +344,13 @@
 
         <h3 data-i18n="finish.undoHeading">Undo order</h3>
         <p class="lede" data-i18n="finish.undoIntro">
-          The order matters — if you delete <code>~/.keel</code> before removing the
-          hooks, the scripts the already-registered hooks point to disappear, and Claude Code /
-          Codex / Grok can error out and get stuck.
+          The order matters — remove the workflow, then the kit hooks, before deleting
+          <code>~/.keel</code>. Otherwise registered hooks point to missing scripts and the CLIs can error out.
         </p>
         <ol>
+          <li data-i18n="finish.undoStepWorkflow"><strong>Remove the workflow first.</strong> On the Workflow tab, press <strong>Remove workflow</strong>.</li>
           <li data-i18n="finish.undoStep1">
-            <strong>Remove the hooks first.</strong> On the Hooks tab, keep the
+            <strong>Then remove the hooks.</strong> On the Hooks tab, keep the
             <strong>Claude Code</strong>, <strong>Codex</strong>, and <strong>Grok</strong>
             checkboxes on, then press the
             <strong>"Remove all kit hooks"</strong> button. If you also want the installed
@@ -337,15 +371,18 @@
           What this program changes:
           the hook entries in <code>~/.claude/settings.json</code> /
           <code>~/.codex/hooks.json</code> / <code>~/.grok/hooks/keel.json</code>,
+          including workflow hook entries in the Claude Code and Codex files,
           the status line in <code>~/.grok/config.toml</code>,
           <code>hooks = true</code> in <code>~/.codex/config.toml</code>,
-          the knowledge base skills under <code>~/.claude/skills</code>, <code>~/.codex/skills</code>,
-          and <code>~/.grok/skills</code>,
+          the rules blocks in <code>~/.claude/CLAUDE.md</code> and <code>~/.codex/AGENTS.md</code>,
+          the workflow skills under <code>~/.claude/skills</code> and <code>~/.codex/skills</code>,
+          the knowledge base skills under those directories and <code>~/.grok/skills</code>,
           the <code>.bak-*</code> backup files left next to them, and
-          <code>~/.keel</code> itself.
+          <code>~/.keel/workflow/</code> and <code>~/.keel/workflow-hooks/</code>, and
+          <code>~/.keel</code>. The <code>keel-harness-map.html</code> page stays in the KB after removal.
         </p>
         <p class="field-note" data-i18n="finish.usingKeel">Using Keel? Star <a href="https://github.com/badjin/keel" target="_blank" rel="noopener">https://github.com/badjin/keel</a> or say hi in its Discussions (<a href="https://github.com/badjin/keel/discussions" target="_blank" rel="noopener">https://github.com/badjin/keel/discussions</a>) — it tells us people use it.</p>
-        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="github"><span data-i18n="nav.prev">← Back</span></button><span></span></div>
+        <div class="btn-row step-pagination"><button class="btn secondary" type="button" data-prev="workflow"><span data-i18n="nav.prev">← Back</span></button><span></span></div>
       </section>
 
     </main>
@@ -356,6 +393,7 @@
       </div>
       <div class="toc-panel" data-toc="wiki" hidden><a href="#wiki-structure" data-i18n="toc.structure">Structure</a><a href="#wiki-path-section" data-i18n="toc.path">Path</a><a href="#wiki-mode-cards" data-i18n="toc.mode">Mode</a></div>
       <div class="toc-panel" data-toc="github" hidden><a href="#github-connect" data-i18n="toc.connect">Connect</a><a href="#repo-list" data-i18n="toc.repositories">Repositories</a><a href="#github-period" data-i18n="toc.periodLanguage">Period / language</a><a href="#github-run" data-i18n="toc.run">Run</a></div>
+      <div class="toc-panel" data-toc="workflow" hidden><a href="#wf-map" data-i18n="workflow.mapTitle">Workflow pipeline map</a><a href="#wf-manifest-heading" data-i18n="workflow.manifestHeading">What will be installed</a><a href="#btn-wf-install" data-i18n="workflow.installBtn">Install workflow</a></div>
       <div class="toc-panel" data-toc="finish" hidden><a href="#finish-summary-section" data-i18n="toc.summary">Summary</a><a href="#obsidian-section">Obsidian</a></div>
     </aside>
   </div>

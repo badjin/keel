@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo user-hook",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/wiki_trigger.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/wiki_loader.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/wiki_read_log.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/no_speculation.py\"",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/ask_after_wiki.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/session_capture.py\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"PY\" \"{HOME}/.keel/hooks/wiki_auto_update.py\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

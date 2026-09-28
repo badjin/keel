@@ -106,6 +106,56 @@ class ServerCoreTest(unittest.TestCase):
     def _host(self):
         return f"127.0.0.1:{self.port}"
 
+    def test_workflow_status_exposes_manifest_paths(self):
+        kb = self.home / "kb"
+        (self.home / ".keel").mkdir()
+        (self.home / ".keel/config.json").write_text(json.dumps({"wiki_path": str(kb)}), encoding="utf-8")
+        status, body = _request(self.port, "/api/workflow/status", token=self.token, host=self._host())
+        self.assertEqual(status, 200)
+        self.assertEqual(body["paths"], {
+            "KEEL_HOME": str(self.home / ".keel"),
+            "KB_PATH": str(kb.resolve()),
+            "CLI_HOME": {target: str(self.home / f".{target}") for target in ("claude", "codex")},
+        })
+
+    def test_workflow_map_view_uses_query_token(self):
+        for query, expected in (("", 403), ("?t=wrong", 403), (f"?t={self.token}&lang=ko", 200)):
+            with self.subTest(query=query):
+                conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+                conn.request("GET", "/api/workflow/map-view" + query, headers={"Host": self._host()})
+                response = conn.getresponse()
+                body = response.read().decode("utf-8")
+                conn.close()
+                self.assertEqual(response.status, expected)
+                if expected == 200:
+                    self.assertIn('id="keel-harness-manifest"', body)
+                else:
+                    self.assertEqual(response.getheader("Content-Type"), "text/html; charset=utf-8")
+
+    def test_workflow_map_view_rejects_foreign_host(self):
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        conn.request("GET", f"/api/workflow/map-view?t={self.token}", headers={"Host": "evil.com"})
+        response = conn.getresponse()
+        response.read()
+        conn.close()
+        self.assertEqual(response.status, 403)
+
+    def test_workflow_map_requires_wiki(self):
+        status, _ = _request(self.port, "/api/workflow/map", method="POST", token=self.token,
+                             host=self._host(), body={})
+        self.assertEqual(status, 400)
+
+    def test_workflow_map_writes_into_wiki(self):
+        kb = self.home / "kb"
+        kb.mkdir()
+        (self.home / ".keel").mkdir()
+        (self.home / ".keel/config.json").write_text(json.dumps({"wiki_path": str(kb)}), encoding="utf-8")
+        with mock.patch.object(server_mod.webbrowser, "open"):
+            status, _ = _request(self.port, "/api/workflow/map", method="POST", token=self.token,
+                                 host=self._host(), body={})
+        self.assertEqual(status, 200)
+        self.assertTrue((kb / "keel-harness-map.html").is_file())
+
     def test_api_requires_token(self):
         status, body = _request(self.port, "/api/env", host=self._host(), lang="ko")
         self.assertEqual(status, 403)

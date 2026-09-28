@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="__KEEL_LANG__" data-embed="__KEEL_EMBED__"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keel harness map</title><style>
+
+:root{
+  --bg:#F2F3F5; --surface:#FFFFFF; --surface-2:#F7F8FA; --ink:#15181D; --muted:#58606B; --faint:#8C939D;
+  --line:#D6DAE0; --line-2:#E6E9ED; --edge:#7B838E; --sel:#15181D; --sel-ink:#FFFFFF;
+  --h:#C2410C; --h-bg:#FFEFE3;
+  --s:#1F4FD1; --s-bg:#E8EEFF;
+  --r:#7433D9; --r-bg:#F0E9FF;
+  --c:#46546A; --c-bg:#E9EDF2;
+  --x:#B8195C; --x-bg:#FBE8F1;
+  --crit:#B42318; --crit-bg:#FDECEA;
+  --sans:-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --mono:ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1216; --surface:#171B21; --surface-2:#1C2128; --ink:#E7E9EC; --muted:#A1A9B4; --faint:#6F7782;
+    --line:#2D333C; --line-2:#242A31; --edge:#8D96A2; --sel:#E7E9EC; --sel-ink:#0F1216;
+    --h:#FB9A5B; --h-bg:#2B1A0E;
+    --s:#86A8FF; --s-bg:#131D36;
+    --r:#BBA0FF; --r-bg:#211636;
+    --c:#AEB8C6; --c-bg:#20262E;
+    --x:#F77AB2; --x-bg:#2D1220;
+    --crit:#FF8A80; --crit-bg:#361512;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1216; --surface:#171B21; --surface-2:#1C2128; --ink:#E7E9EC; --muted:#A1A9B4; --faint:#6F7782;
+  --line:#2D333C; --line-2:#242A31; --edge:#8D96A2; --sel:#E7E9EC; --sel-ink:#0F1216;
+  --h:#FB9A5B; --h-bg:#2B1A0E;
+  --s:#86A8FF; --s-bg:#131D36;
+  --r:#BBA0FF; --r-bg:#211636;
+  --c:#AEB8C6; --c-bg:#20262E;
+  --x:#F77AB2; --x-bg:#2D1220;
+  --crit:#FF8A80; --crit-bg:#361512;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:1400px;margin:0 auto;padding-inline:clamp(16px,3vw,40px);padding-block:32px 64px;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{margin:0;text-wrap:balance;letter-spacing:-0.01em}
+h1{font-size:clamp(26px,3.4vw,36px);font-weight:700;line-height:1.2}
+h2{font-size:19px;font-weight:700}
+h3{font-size:15px;font-weight:600}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+header{display:flex;flex-direction:column;gap:10px}
+header h1,.lede{max-width:74ch}
+.lede{color:var(--muted);font-size:16px}
+.inspiration{max-width:74ch;color:var(--muted);font-size:14px;line-height:1.55}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}
+html[data-embed="1"] .lang{display:none}
+html[data-embed="1"] section[aria-labelledby="install-h"],html[data-embed="1"] section[aria-labelledby="check-h"],html[data-embed="1"] footer{display:none}
+.lang button{appearance:none;border:0;background:none;font:inherit;font-size:12.5px;line-height:20px;color:var(--muted);padding:3px 12px;border-radius:999px;cursor:pointer}
+.lang button:hover{color:var(--ink)}
+.lang button[aria-pressed="true"]{background:var(--sel);color:var(--sel-ink)}
+.lang button:focus-visible{outline:2px solid var(--s);outline-offset:2px}
+@media (forced-colors:active){.lang button[aria-pressed="true"]{outline:2px solid CanvasText}}
+section{display:flex;flex-direction:column;gap:16px}
+.sec-head{display:flex;flex-direction:column;gap:4px;max-width:78ch}
+.sec-head p{color:var(--muted)}
+
+/* ---------- rail ---------- */
+.rail-scroll{overflow-x:auto;overflow-y:hidden;padding:4px}
+.rail{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(98px,1fr);min-width:max-content;gap:0}
+html[data-embed="1"] .rail{grid-auto-columns:minmax(64px,1fr);min-width:0;width:100%}
+.rail::before{content:"";position:absolute;left:49px;right:49px;top:37.5px;height:3px;background:var(--line);border-radius:2px}
+html[data-embed="1"] .rail::before{left:32px;right:32px}
+.st{position:relative;appearance:none;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:6px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;border-radius:8px}
+.st:hover{background:var(--surface)}
+.st:focus-visible{outline:2px solid var(--s);outline-offset:2px}
+.st .num{font-family:var(--mono);font-size:11.5px;color:var(--muted);height:18px;line-height:18px;white-space:nowrap}
+.st .dot{width:18px;height:18px;border-radius:50%;background:var(--surface);border:3px solid var(--edge);position:relative;z-index:1}
+.st .nm{font-size:13px;font-weight:500;line-height:1.3;min-height:34px}
+.st .marks{display:flex;gap:4px;min-height:18px;flex-wrap:wrap;justify-content:center}
+.mk{font-size:10.5px;line-height:16px;padding:0 5px;border-radius:3px;white-space:nowrap}
+.mk.hum{background:var(--h-bg);color:var(--h)}
+.mk.cond{background:var(--c-bg);color:var(--c)}
+.st[aria-selected="true"] .dot{background:var(--sel);border-color:var(--sel)}
+.st[aria-selected="true"] .nm{font-weight:700}
+.side{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.side .lbl{font-size:13px;color:var(--muted);margin-right:4px}
+.sd{appearance:none;font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px dashed var(--edge);border-radius:999px;padding:4px 12px;cursor:pointer;position:relative}
+.sd:hover{border-style:solid}
+.sd:focus-visible{outline:2px solid var(--s);outline-offset:2px}
+.sd[aria-selected="true"]{background:var(--sel);color:var(--sel-ink);border:1px solid var(--sel)}
+
+/* ---------- legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12.5px;color:var(--muted);align-items:center}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:14px;border:1.5px solid;display:inline-block}
+.sw.H{background:var(--h-bg);border-color:var(--h);border-radius:8px}
+.sw.S{background:var(--s-bg);border-color:var(--s);border-radius:4px}
+.sw.R{background:var(--r-bg);border-color:var(--r);border-radius:4px}
+.sw.C{background:var(--c-bg);border-color:var(--c);border-radius:0}
+.sw.X{background:var(--x-bg);border-color:var(--x);border-radius:1px}
+.tg{font-size:10.5px;line-height:16px;padding:0 5px;border-radius:3px;font-weight:600}
+.tg.gate{background:var(--h);color:var(--surface)}
+.tg.deny{background:var(--crit);color:var(--surface)}
+.tg.loop{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+
+/* ---------- panel ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px clamp(16px,2.4vw,28px) 26px;display:flex;flex-direction:column;gap:18px;margin-top:2px}
+.p-head{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline}
+.p-num{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.p-sum{color:var(--muted);max-width:90ch}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.bdg{font-size:11.5px;line-height:20px;padding:0 8px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.bdg.hum{background:var(--h-bg);border-color:transparent;color:var(--h)}
+.flow-scroll{overflow-x:auto;border:1px solid var(--line-2);border-radius:8px;background:var(--surface-2)}
+.flow-scroll svg{display:block;max-width:none}
+.p-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
+.detail{border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-height:150px;background:var(--surface)}
+.detail .who{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.detail .ttl{font-weight:600;font-size:15px}
+.detail .src{font-family:var(--mono);font-size:12px;color:var(--muted);word-break:break-all}
+.detail .hint{font-size:12px;color:var(--faint)}
+.points h3{margin-bottom:6px}
+.points ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.points li::marker{color:var(--faint)}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.files code{background:var(--surface-2);border:1px solid var(--line-2);border-radius:4px;padding:1px 6px;font-size:11.5px;color:var(--muted);word-break:break-all}
+
+/* ---------- svg ---------- */
+svg text{font-family:var(--sans);fill:var(--ink)}
+.band{fill:var(--surface)}
+.band.alt{fill:var(--surface-2)}
+.lane-sep{stroke:var(--line)}
+.lane-name{font-size:12.5px;font-weight:600}
+.lane-sub{font-size:10.5px;fill:var(--muted)}
+.lane-chip{stroke-width:1.5}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.4}
+.edge.loop{stroke-dasharray:5 4}
+.edge.alt{stroke-dasharray:2 3}
+.ah{fill:var(--edge)}
+.elabel{font-size:10.5px;fill:var(--muted)}
+.elabel-bg{fill:var(--surface-2)}
+.node{cursor:pointer;outline:none}
+.node .shape{stroke-width:1.5}
+.node text{font-size:12px;pointer-events:none}
+.node:hover .shape,.node:focus-visible .shape{stroke-width:2.6}
+.node.on .shape{stroke-width:2.8}
+.node.lane-H .shape,.lane-chip.H{fill:var(--h-bg);stroke:var(--h)}
+.node.lane-S .shape,.lane-chip.S{fill:var(--s-bg);stroke:var(--s)}
+.node.lane-R .shape,.lane-chip.R{fill:var(--r-bg);stroke:var(--r)}
+.node.lane-C .shape,.lane-chip.C{fill:var(--c-bg);stroke:var(--c)}
+.node.lane-X .shape,.lane-chip.X{fill:var(--x-bg);stroke:var(--x)}
+.node.k-x .shape{fill:var(--surface-2);stroke-dasharray:4 3;stroke-width:1.2}
+.node.k-x text{fill:var(--muted)}
+.node.k-x:hover .shape,.node.k-x.on .shape{stroke-width:2.4}
+.node:focus-visible .shape,.node.k-x:focus-visible .shape{stroke:var(--ink);stroke-width:3}
+.ntag rect{stroke:none}
+.ntag text{font-size:9.5px;font-weight:700;fill:var(--surface)}
+.ntag.gate rect{fill:var(--h)}
+.ntag.deny rect{fill:var(--crit)}
+.ntag.loop rect{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.ntag.loop text{fill:var(--muted)}
+
+footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:6px}
+footer code{font-size:11.5px}
+
+@media (max-width:860px){
+  .p-grid{grid-template-columns:1fr}
+}
+
+html,body{max-width:100%;overflow-x:hidden}
+.wrap,section,.panel,.p-grid,.detail,.points{min-width:0}
+.install-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.install-table{border-collapse:collapse;width:100%;min-width:680px;font-size:13px}
+.install-table th,.install-table td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.install-table th{background:var(--surface-2)}
+.install-table td code{overflow-wrap:anywhere}
+.check-box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.copy-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button.copy{font:inherit;background:var(--sel);color:var(--sel-ink);border:0;border-radius:6px;padding:7px 12px;cursor:pointer}
+@media(max-width:480px){.wrap{gap:26px;padding-block:20px 40px}.panel{padding:14px}.rail{grid-auto-columns:minmax(90px,1fr)}}
+</style></head><body><main class="wrap">
+<header><div class="topbar"><p class="eyebrow">Keel __KEEL_VERSION__ workflow harness</p><div class="lang" role="group" aria-label="Language"><button type="button" data-lang="ko" lang="ko">한국어</button><button type="button" data-lang="en" lang="en">English</button></div></div><h1 data-en="Harness pipeline map" data-ko="하네스 파이프라인 지도"></h1><p class="lede" data-en="Follow a work item through the Keel workflow. Select a stage, then select a box in its flow diagram to see its role and source file." data-ko="Keel 워크플로우의 작업 단계를 살펴보세요. 단계를 선택하고 흐름도의 상자를 누르면 역할과 파일을 볼 수 있습니다."></p><p class="inspiration" id="inspiration"></p></header>
+<section aria-labelledby="map-h"><div class="sec-head"><h2 id="map-h" data-en="Pipeline" data-ko="파이프라인"></h2><p data-en="The rail shows the FULL stages in order. Shared mechanisms appear below." data-ko="위의 단계는 FULL 작업 순서이고, 아래에는 공통 장치가 있습니다."></p></div><div class="rail-scroll"><div class="rail" id="rail" role="tablist" aria-label="Pipeline stages"></div></div><div class="side" id="side" role="tablist" aria-label="Shared mechanisms"></div><div class="legend"><span class="lg"><i class="sw H"></i><span data-en="Human" data-ko="사람"></span></span><span class="lg"><i class="sw S"></i><span data-en="Session agent" data-ko="세션 에이전트"></span></span><span class="lg"><i class="sw R"></i><span data-en="Review run" data-ko="검토 실행"></span></span><span class="lg"><i class="sw C"></i><span data-en="Keel hooks and scripts" data-ko="Keel 훅과 스크립트"></span></span><span class="lg"><i class="sw X"></i><span data-en="Files" data-ko="파일"></span></span><span class="lg"><span class="tg gate" data-en="waits" data-ko="대기"></span><span data-en="Waits for an answer" data-ko="답을 기다림"></span></span><span class="lg"><span class="tg deny" data-en="blocks" data-ko="차단"></span><span data-en="Blocks when a condition fails" data-ko="조건이 안 맞으면 차단"></span></span></div><article class="panel" id="panel" role="tabpanel"><div class="p-head"><span class="p-num" id="pNum"></span><h2 id="pName"></h2><div class="badges" id="pBadges"></div></div><p class="p-sum" id="pSum"></p><figure style="margin:0"><div class="flow-scroll"><svg id="flow" role="group"></svg></div></figure><div class="p-grid"><div class="detail" id="detail"></div><div class="points"><h3 data-en="What to know at this stage" data-ko="이 단계에서 알아 둘 것"></h3><ul id="pPoints"></ul><div class="files" id="pFiles"></div></div></div></article></section>
+<section aria-labelledby="install-h"><div class="sec-head"><h2 id="install-h" data-en="What gets installed where" data-ko="어디에 무엇이 설치되나요"></h2><p data-en="Remove workflow removes workflow items, but the harness map page stays in the knowledge base. Catalogue hooks are installed by the Hooks step." data-ko="워크플로우 제거는 워크플로우 항목을 지우지만, 하네스 지도 페이지는 지식 베이스에 남습니다. 카탈로그 훅은 훅 단계에서 설치됩니다."></p></div><div class="install-scroll"><table class="install-table"><thead><tr><th data-en="Title" data-ko="이름"></th><th data-en="Path" data-ko="경로"></th><th data-en="CLIs" data-ko="CLI"></th><th data-en="Stage" data-ko="단계"></th><th data-en="Installation" data-ko="설치"></th></tr></thead><tbody id="install-body"></tbody></table></div></section>
+<section aria-labelledby="check-h"><div class="sec-head"><h2 id="check-h" data-en="Check this setup with your AI" data-ko="AI에게 이 설정 확인하기"></h2></div><div class="check-box"><div class="copy-row"><code id="check-prompt">Check my Keel harness against the map — use the keel-check skill.</code><button type="button" class="copy" id="copy-check" data-en="Copy" data-ko="복사"></button></div><p data-en="The check compares your installed harness with this map and reports gaps." data-ko="이 검사는 설치된 하네스를 지도와 비교해 빠진 부분을 알려줍니다."></p><p data-en="It changes nothing." data-ko="아무것도 변경하지 않습니다."></p></div></section>
+<footer><p data-en="Keel workflow harness map" data-ko="Keel 워크플로우 하네스 지도"></p><a href="https://github.com/badjin/keel">Keel on GitHub</a></footer></main>
+<script type="application/json" id="keel-harness-manifest">/*__KEEL_MANIFEST__*/</script>
+<script>/*__KEEL_MAP_DATA__*/
+const MANIFEST = JSON.parse(document.getElementById('keel-harness-manifest').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+const $ = s => document.querySelector(s);
+const t = obj => typeof obj === 'string' ? obj : (obj && (obj[lang] || obj.en)) || '';
+function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);if(attrs) for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+function h(tag, cls, value){const e=document.createElement(tag);if(cls)e.className=cls;if(value!=null)e.textContent=value;return e;}
+const STAGES = [...MAP.stages, ...MAP.side].map(s => ({...s, side: MAP.side.includes(s), nodes: s.nodes.map(n => ({...n,l:n.lane,c:n.col,t:n.title,d:n.desc,k:n.kind})),edges:s.edges}));
+const ORDER = MAP.lanes.map(l => l.id);
+const G = { LW:124,CW:156,LH:96,NW:130,NH:54,PAD:14 };
+const TAGTXT = {gate:{en:'waits',ko:'대기'},deny:{en:'blocks',ko:'차단'},loop:{en:'loop',ko:'반복'}};
+const laneNames = () => Object.fromEntries(MAP.lanes.map(l => [l.id,[t(l.name),t(l.sub)]]));
+const tags = () => Object.fromEntries(Object.entries(TAGTXT).map(([k,v]) => [k,t(v)]));
+let lang = '__KEEL_LANG__';
+function textLines(parent, x, y, str, cls){
+  const lines = str.split('\n');
+  const lh = 14.5;
+  const y0 = y - (lines.length - 1) * lh / 2;
+  const textEl = el('text', { x, y: y0, 'text-anchor': 'middle', 'dominant-baseline': 'central', class: cls || '' }, parent);
+  lines.forEach((ln, i) => {
+    const sp = el('tspan', { x, dy: i === 0 ? 0 : lh }, textEl);
+    sp.textContent = ln;
+  });
+  return textEl;
+}
+
+function labelBox(svg, x, y, str){
+  const g = el('g', {}, svg);
+  const bg = el('rect', { class: 'elabel-bg', rx: 3 }, g);
+  const textEl = el('text', { x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central', class: 'elabel' }, g);
+  textEl.textContent = str;
+  const w0 = textEl.getBBox().width, maxW = G.CW - 16;
+  if (w0 > maxW) textEl.style.fontSize = (10.5 * maxW / w0).toFixed(2) + 'px';
+  const b = textEl.getBBox();
+  bg.setAttribute('x', b.x - 4); bg.setAttribute('y', b.y - 1);
+  bg.setAttribute('width', b.width + 8); bg.setAttribute('height', b.height + 2);
+}
+
+function renderFlow(stage){
+  const svg = $('#flow');
+  svg.replaceChildren();
+  const nodes = stage.nodes;
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const lanes = ORDER.filter(l => nodes.some(n => n.l === l));
+  const li = Object.fromEntries(lanes.map((l, i) => [l, i]));
+  const cols = Math.max(...nodes.map(n => n.c)) + 1;
+  const W = G.LW + cols * G.CW + G.PAD;
+  const H = lanes.length * G.LH;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', t(stage.name) + (lang === 'en' ? ' flow diagram. Select a box to see its description below.' : ' 흐름도. 상자를 누르면 아래에 설명이 나옵니다.'));
+
+  const defs = el('defs', {}, svg);
+  const m = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', class: 'ah' }, m);
+
+  lanes.forEach((l, i) => {
+    el('rect', { x: 0, y: i * G.LH, width: W, height: G.LH, class: 'band' + (i % 2 ? ' alt' : '') }, svg);
+    if (i) el('line', { x1: 0, x2: W, y1: i * G.LH, y2: i * G.LH, class: 'lane-sep' }, svg);
+    const cy = i * G.LH + G.LH / 2;
+    el('rect', { x: 12, y: cy - 20, width: 5, height: 40, rx: 2, class: 'lane-chip ' + l }, svg);
+    const n1 = el('text', { x: 26, y: cy - 7, class: 'lane-name', 'dominant-baseline': 'central' }, svg);
+    n1.textContent = laneNames()[l][0];
+    const n2 = el('text', { x: 26, y: cy + 10, class: 'lane-sub', 'dominant-baseline': 'central' }, svg);
+    n2.textContent = laneNames()[l][1];
+    [[n1, 12.5], [n2, 10.5]].forEach(([tn, fs]) => {
+      const w = tn.getBBox().width, maxW = G.LW - 10 - 26 - 4;
+      if (w > maxW) tn.style.fontSize = (fs * maxW / w).toFixed(2) + 'px';
+    });
+  });
+  el('line', { x1: G.LW - 10, x2: G.LW - 10, y1: 0, y2: H, class: 'lane-sep' }, svg);
+
+  nodes.forEach(n => {
+    n.x = G.LW + n.c * G.CW + G.CW / 2;
+    n.y = li[n.l] * G.LH + G.LH / 2;
+    n.hh = n.k === 'd' ? G.NH / 2 + 8 : G.NH / 2;
+  });
+  const anc = (n, s) => ({
+    r: [n.x + G.NW / 2, n.y], l: [n.x - G.NW / 2, n.y],
+    t: [n.x, n.y - n.hh], b: [n.x, n.y + n.hh]
+  })[s];
+
+  const seen = {};
+  nodes.forEach(n => {
+    const key = n.l + n.c;
+    if (seen[key]) console.warn('two nodes share a cell', seen[key], n.id);
+    seen[key] = n.id;
+  });
+
+  const chan = {};
+  const labels = [];
+  (stage.edges || []).forEach(e => {
+    const [f, to, lab, opt] = e;
+    const off = (opt || []).find(o => typeof o === 'object') || {};
+    const a = byId[f], b = byId[to];
+    if (!a || !b) { console.warn('missing node', f, to); return; }
+    let d, lx, ly, cls = 'edge';
+    if (opt && opt.includes('loop')) cls += ' loop';
+    if (opt && opt.includes('alt')) cls += ' alt';
+    if (b.c > a.c) {
+      const [x1, y1] = anc(a, 'r'), [x2, y2] = anc(b, 'l');
+      if (a.l === b.l) {
+        d = `M${x1},${y1} H${x2}`; lx = (x1 + x2) / 2; ly = y1 - G.NH / 2 - 9;
+      } else {
+        let bx = opt && opt.includes('bs') ? G.LW + (a.c + 1) * G.CW : G.LW + b.c * G.CW;
+        if (opt && opt.includes('alt')) bx -= 6;
+        d = `M${x1},${y1} H${bx} V${y2} H${x2}`;
+        lx = bx; ly = Math.max(li[a.l], li[b.l]) * G.LH;
+      }
+    } else if (b.c === a.c) {
+      const down = li[b.l] > li[a.l];
+      const [x1, y1] = anc(a, down ? 'b' : 't'), [, y2] = anc(b, down ? 't' : 'b');
+      d = `M${x1},${y1} V${y2}`; lx = x1; ly = (y1 + y2) / 2;
+    } else {
+      const top = opt && opt.includes('top');
+      const key = top ? 't' + Math.min(li[a.l], li[b.l]) : 'b' + Math.max(li[a.l], li[b.l]);
+      const used = chan[key] = chan[key] || [];
+      const span = [b.x, a.x];
+      const k = used.filter(s => s[0] < span[1] && span[0] < s[1]).length;
+      used.push(span);
+      const yc = top ? Math.min(li[a.l], li[b.l]) * G.LH + 9 + k * 6
+                     : (Math.max(li[a.l], li[b.l]) + 1) * G.LH - 9 - k * 6;
+      const [x1, y1] = anc(a, top ? 't' : 'b'), [x2, y2] = anc(b, top ? 't' : 'b');
+      d = `M${x1},${y1} V${yc} H${x2} V${y2}`; lx = (x1 + x2) / 2; ly = yc;
+    }
+    lx += off.dx || 0; ly += off.dy || 0;
+    el('path', { d, class: cls, 'marker-end': 'url(#ah)' }, svg);
+    if (lab) labels.push([lx, ly, t(lab)]);
+  });
+
+  const detail = $('#detail');
+  const groups = [];
+  nodes.forEach((n, idx) => {
+    const g = el('g', { class: `node lane-${n.l} k-${n.k || 's'}`, tabindex: 0, role: 'button', 'aria-label': t(n.t).replace(/\n/g, ' ') }, svg);
+    if (n.k === 'd') {
+      const hw = G.NW / 2 + 2;
+      el('polygon', { class: 'shape', points: `${n.x},${n.y - n.hh} ${n.x + hw},${n.y} ${n.x},${n.y + n.hh} ${n.x - hw},${n.y}` }, g);
+    } else {
+      const rx = n.l === 'H' ? 22 : n.l === 'C' ? 0 : n.l === 'X' ? 2 : 9;
+      el('rect', { class: 'shape', x: n.x - G.NW / 2, y: n.y - G.NH / 2, width: G.NW, height: G.NH, rx }, g);
+    }
+    const tx = textLines(g, n.x, n.y, t(n.t));
+    const maxW = n.k === 'd' ? G.NW - 34 : G.NW - 12;
+    const tw = tx.getBBox().width;
+    if (tw > maxW) tx.style.fontSize = (12 * maxW / tw).toFixed(2) + 'px';
+    if (n.tag) {
+      const tg = el('g', { class: 'ntag ' + n.tag }, g);
+      const pill = el('rect', { height: 14, rx: 3 }, tg);
+      const tt = el('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central' }, tg);
+      tt.textContent = tags()[n.tag];
+      const pw = tt.getBBox().width + 10;
+      const px = n.k === 'd' ? n.x + 18 : n.x + G.NW / 2 - pw;
+      const py = n.y - n.hh - 7;
+      pill.setAttribute('x', px); pill.setAttribute('y', py); pill.setAttribute('width', pw);
+      tt.setAttribute('x', px + pw / 2); tt.setAttribute('y', py + 7);
+    }
+    const show = () => {
+      groups.forEach(x => x.classList.remove('on'));
+      g.classList.add('on');
+      detail.replaceChildren();
+      const who = h('div', 'who');
+      const sw = h('i', 'sw ' + n.l);
+      who.append(sw, document.createTextNode(laneNames()[n.l][0] + ' · ' + laneNames()[n.l][1] + (n.tag ? ' · ' + tags()[n.tag] : '')));
+      detail.append(who, h('div', 'ttl', t(n.t).replace(/\n/g, ' ')), h('p', '', t(n.d) || ''));
+      if (n.src) detail.append(h('div', 'src', t(n.src)));
+      detail.append(h('div', 'hint', `${idx + 1} / ${nodes.length} · ` + (lang === 'en' ? 'Hover or tap another box to switch' : '다른 상자에 마우스를 올리거나 탭하면 바뀝니다')));
+    };
+    g.addEventListener('mouseenter', show);
+    g.addEventListener('focus', show);
+    g.addEventListener('click', show);
+    groups.push(g);
+    n.show = show;
+  });
+  labels.forEach(([x, y, s]) => labelBox(svg, x, y, s));
+  nodes[0].show();
+}
+
+/* ---------- pipeline rail + panel ---------- */
+let current = '';
+function select(id, focus){
+  const st = STAGES.find(s => s.id === id) || STAGES[0];
+  current = st.id;
+  document.querySelectorAll('[role="tablist"]').forEach(list => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const has = tabs.some(b => b.dataset.id === st.id);
+    tabs.forEach((b, i) => {
+      const on = b.dataset.id === st.id;
+      b.setAttribute('aria-selected', on);
+      b.tabIndex = on || (!has && i === 0) ? 0 : -1;
+      if (on && focus) b.focus();
+    });
+  });
+  $('#panel').setAttribute('aria-labelledby', 'tab-' + st.id);
+  $('#pNum').textContent = t(st.num);
+  $('#pName').textContent = t(st.name);
+  $('#pSum').textContent = t(st.sum);
+  const bd = $('#pBadges'); bd.replaceChildren();
+  (st.badges || []).forEach(([cls, text]) => bd.append(h('span', 'bdg ' + (cls || ''), t(text))));
+  const pts = $('#pPoints'); pts.replaceChildren();
+  st.points.forEach(p => pts.append(h('li', '', t(p))));
+  const fl = $('#pFiles'); fl.replaceChildren();
+  (st.files || []).forEach(f => fl.append(h('code', '', t(f))));
+  renderFlow(st);
+  try { history.replaceState(null, '', '#' + st.id); } catch (e) {}
+}
+
+function buildRail(){
+  const rail = $('#rail'), side = $('#side');
+  rail.replaceChildren();
+  side.replaceChildren(h('span', 'lbl', lang === 'en' ? 'Across all stages' : '모든 단계에 걸친 장치'));
+  STAGES.forEach(s => {
+    const b = h('button', s.side ? 'sd' : 'st');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.id = 'tab-' + s.id;
+    b.dataset.id = s.id;
+    b.setAttribute('aria-controls', 'panel');
+    if (s.side) {
+      b.textContent = t(s.name);
+      side.append(b);
+    } else {
+      b.append(h('span', 'num', t(s.num)), h('span', 'dot'), h('span', 'nm', t(s.short || s.name)));
+      const mk = h('span', 'marks');
+      (s.marks || []).forEach(([c, text]) => mk.append(h('span', 'mk ' + c, t(text))));
+      b.append(mk);
+      rail.append(b);
+    }
+    b.addEventListener('click', () => select(s.id));
+    b.addEventListener('keydown', ev => {
+      const list = STAGES.filter(x => !!x.side === !!s.side).map(x => x.id);
+      const i = list.indexOf(s.id);
+      const go = { ArrowRight: (i + 1) % list.length, ArrowLeft: (i - 1 + list.length) % list.length, Home: 0, End: list.length - 1 }[ev.key];
+      if (go !== undefined) { ev.preventDefault(); select(list[go], true); }
+    });
+  });
+}
+
+function buildInstallTable(){
+  const used = new Set(STAGES.flatMap(s => [...s.install, ...s.nodes.flatMap(n => n.install)]));
+  const rows = MANIFEST.items.map(item => ({title:t(item.title),path:item.path,targets:item.targets,stage:item.stage==='check'?(lang==='en'?'Harness check':'하네스 점검'):t(STAGES.find(s=>s.id===item.stage)?.short),installation:item.removal==='kept'?(lang==='en'?'kept in the knowledge base by Remove workflow':'워크플로우 제거 뒤에도 지식 베이스에 남음'):(lang==='en'?'removed by Remove workflow':'워크플로우 제거로 삭제')}));
+  MAP.catalogue.filter(item => used.has(item.id)).forEach(item => rows.push({title:lang==='en'?item.title_en:item.title_ko,path:item.path,targets:item.targets,stage:STAGES.filter(s=>s.install.includes(item.id)||s.nodes.some(n=>n.install.includes(item.id))).map(s=>t(s.short)).join(', '),installation:lang==='en'?'installed by the Hooks step':'훅 단계에서 설치'}));
+  const body=$('#install-body');body.replaceChildren();
+  rows.forEach(row=>{const tr=h('tr');[row.title,row.path,(row.targets||[]).join(', '),row.stage,row.installation].forEach((value,i)=>{const td=h('td');if(i===1)td.append(h('code','',value));else td.textContent=value;tr.append(td);});body.append(tr);});
+}
+function setLang(next){
+  lang=next==='ko'?'ko':'en';document.documentElement.lang=lang;
+  $('#inspiration').textContent=t(MAP.note);
+  document.querySelectorAll('[data-en][data-ko]').forEach(e=>{e.textContent=e.dataset[lang];});
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===lang)));
+  buildRail();buildInstallTable();select(current||STAGES[0].id);
+}
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
+$('#copy-check').addEventListener('click',()=>navigator.clipboard.writeText($('#check-prompt').textContent));
+setLang(lang);
+if (document.documentElement.dataset.embed === '1') {
+  const reportHeight = () => parent.postMessage({type:'keel-map-height',height:Math.ceil(document.querySelector('.wrap').getBoundingClientRect().height)},location.origin);
+  addEventListener('load', reportHeight);
+  new ResizeObserver(reportHeight).observe(document.querySelector('.wrap'));
+}
+</script></body></html>

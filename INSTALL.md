@@ -7,6 +7,7 @@ the rest of the install over to you in the browser.
 You (the agent reading this file) are running on a fresh machine with no other
 context about this task. This file is self-sufficient — follow it exactly,
 in order. It sets up a Knowledge Base (KB) and optional Claude Code / Codex hooks.
+The Workflow step is optional; skip it unless the user wants a staged workflow.
 The Hooks tab also offers optional automatic handoff for Claude Code, Codex,
 and Grok. It is off by default; the human chooses its CLIs and threshold.
 **Every choice — which hooks, where the KB goes, which repos to index — is
@@ -128,24 +129,24 @@ hand regardless — the same URL step 3's fixed message hands over next.
 ## 3. Hand the URL to the user and wait
 
 Tell the user, in the user's own language, that the browser should have
-opened already, and always give them the address and the four steps too,
+opened already, and always give them the address and the five steps too,
 regardless (with the real URL substituted):
 
 ```
-The browser should have opened already. Here is the address too — open it and go through the four steps: <URL>
+The browser should have opened already. Here is the address too — open it and go through the five steps (skip Workflow unless you want it): <URL>
 ```
 
 The page itself defaults to English with a Korean toggle in the top bar, so
 this instruction does not depend on which language the page ends up in.
 
-Then wait for the user to finish all four tabs in the page themselves
-(Hooks · Knowledge Base · GitHub · Finish/Obsidian). Do not open the URL, do not
+Then wait for the user to finish the five tabs in the page themselves
+(Hooks · Knowledge Base · GitHub · Workflow (optional) · Finish/Obsidian). Do not open the URL, do not
 click anything in it, and do not choose any hook, KB location, or repo on
 the user's behalf — those decisions belong to the user alone.
 
 ## 4. Poll for completion
 
-The web page writes a result file when the user finishes tab 4. Poll for it
+The web page writes a result file when the user finishes tab 5. Poll for it
 with this exact bounded loop (30 checks, 10 s apart — up to 5 minutes):
 
 ```
@@ -215,10 +216,10 @@ escalation from step 2 was not applied.
 These are not yours to perform. Point them out; do not attempt them:
 
 - **Obsidian install/open** — if step 1 found no `/Applications/Obsidian.app`
-  or `~/Applications/Obsidian.app`, tab 4 of the web page shows a
+  or `~/Applications/Obsidian.app`, tab 5 of the web page shows a
   `brew install --cask obsidian` command and a download link. Only the user
   can run the installer and approve any macOS security prompts. Opening the
-  KB in Obsidian (the `obsidian://open?...` link tab 4 provides) is also a
+  KB in Obsidian (the `obsidian://open?...` link tab 5 provides) is also a
   GUI action for the user.
 - **Codex `/hooks` trust** — Codex will not execute newly installed hooks
   until the user reviews and trusts them once, interactively, by running
@@ -242,14 +243,17 @@ These are not yours to perform. Point them out; do not attempt them:
 
 ## Undo order (되돌리기 순서)
 
-Follow this order — deleting `~/.keel` first, while hooks are still
+Follow this order — deleting `~/.keel` first, while kit hooks or workflow hooks are still
 registered in `~/.claude/settings.json` or `~/.codex/hooks.json`, makes every
 one of those hooks exit 2 on its next run (the scripts they point to are
 gone), which blocks the CLI until you fix it.
 
-1. **Remove the hooks first**, while `~/.keel` still exists, using
+1. **Remove the workflow first.** Start the server again (step 2 above),
+   then press **Remove workflow** ("워크플로우 제거" in Korean) on the Workflow tab.
+   The workflow has no by-hand removal path, so this button is required.
+2. **Remove the hooks**, while `~/.keel` still exists, using
    one of:
-   - Start the server again (step 2 above). Keep every visible CLI
+   - Keep every visible CLI
      checkbox (Claude Code, Codex, Grok) ticked in tab 1 — unticking one
      excludes that target from the uninstall call and can leave its hooks
      in place. Then use the **"Remove all kit hooks"** button (labeled
@@ -262,10 +266,10 @@ gone), which blocks the CLI until you fix it.
      the file was missing at install time and no sentinel existed yet;
      restoring it is safe from the lockout but discards any later changes
      to that file. Otherwise, use the **newest** `*.bak-*` file next to it
-     for which `grep -c '/.keel/hooks/' <backup>` prints `0` —
-     that means the backup predates any kit hooks, so it is kit-free. A
+     for which `grep -cE '/\.keel/(hooks|workflow-hooks)/' <backup>` prints `0` —
+     that means the backup contains neither kit hooks nor workflow hooks. A
      backup with a non-zero count was taken *after* a kit install and
-     already contains kit hooks, so restoring one of those and then
+     already contains kit or workflow hooks, so restoring one of those and then
      deleting `~/.keel` recreates the exit-2 lockout this section
      warns about. `~/.codex/config.toml` needs no restoring — it holds no kit
      hook commands, so it cannot cause the lockout; `hooks = true` is
@@ -276,7 +280,7 @@ gone), which blocks the CLI until you fix it.
      Restore the Grok status line entry in `~/.grok/config.toml` from its
      pre-kit value if present. Remove Keel skills under `~/.grok/skills/`
      when removing skills by hand.
-2. **Only then**, delete everything else the kit wrote:
+3. **Only then**, delete everything else the kit wrote:
    `rm -rf ~/.keel`. This does not delete the KB itself (the
    user's `wiki_path`, e.g. `~/knowledge-base`) or Obsidian.
 
