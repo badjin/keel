@@ -9,6 +9,7 @@ import unicodedata
 from pathlib import Path
 
 from . import approval, docs, fsutil, transcripts, work
+from .plan import outward_steps
 
 
 class Refused(Exception):
@@ -145,11 +146,13 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
         reviewed = state.get("reviews", {}).get("spec", {})
         if reviewed.get("verdict") != "PASS" or reviewed.get("hashes", {}).get("spec") != hashes["spec"]:
             raise Refused("spec has no PASS review on its current hash")
+    outward = []
     if stage in ("plan", "phase"):
         plan = (folder / "plan.md").read_text(encoding="utf-8")
         if stage == "plan":
             inputs.append(("plan.md", plan))
             hashes["plan"] = docs.plan_hash(plan)
+            outward = outward_steps(plan)
     if stage == "intent":
         session_paths = [Path(session.get("transcript_path", "")) for session in state.get("sessions", [])]
         readable = []
@@ -186,7 +189,8 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
                           if work_path.is_relative_to(keel_home.parent))
         tool_texts = [text for session_path in readable
                       for text in transcripts.tool_call_texts(str(session_path))
-                      if not any(work_path in unicodedata.normalize("NFC", transcripts.expand_shell_variables(text, str(keel_home.parent)))
+                      if not any(work_path in variant
+                                 for variant in transcripts.path_variants(text, str(keel_home.parent))
                                  for work_path in work_paths)]
         for page in pages:
             listed_path = Path(page) if Path(page).is_absolute() else kb / page
@@ -235,6 +239,9 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
     if stage == "intent" and kb_problems:
         verdict = "FAIL"
         checks = ["CHECK kb-consulted: FAIL — " + "; ".join(kb_problems)]
+    elif stage == "plan" and outward:
+        verdict = "FAIL"
+        checks = ["CHECK no-outward-steps: FAIL — " + "; ".join(line.strip() for line in outward)]
     elif not exe:
         verdict = "ERROR"
         answer = f"Review CLI unavailable: {cli or 'not configured'}"
@@ -282,7 +289,7 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
             body += f"- Exempt: {scenarios['exempt']}\n"
         else:
             body += "".join(f"- {item}\n" for item in scenarios["scenarios"])
-    if not (stage == "intent" and kb_problems):
+    if not ((stage == "intent" and kb_problems) or (stage == "plan" and outward)):
         body += "\n## Answer\n" + answer.rstrip() + "\n"
     fsutil.atomic_write_text(record, body)
 

@@ -18,6 +18,64 @@ class InstallTest(unittest.TestCase):
         self.home = Path(self.tmp.name) / "home"
         self.home.mkdir()
 
+    def _write(self, rel, data):
+        path = self.home / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return path
+
+    def _defaults(self):
+        return [h["id"] for h in install_hooks.load_catalogue(ROOT) if h.get("default")]
+
+    def _page_ids(self):
+        installed = install_hooks.installed_ids(self.home)
+        ids = []
+        for target in ("claude", "codex"):
+            for hook_id in installed[target]:
+                if hook_id not in ids:
+                    ids.append(hook_id)
+        return ids
+
+    def test_same_selection_reinstall_writes_same_bytes(self):
+        self._write(".claude/settings.json", {"hooks": {"Stop": [
+            {"hooks": [{"type": "command", "command": "echo user-stop"}]}]}})
+        install_hooks.install(self.home, ROOT, self._defaults(), ["claude", "codex"])
+        paths = [self.home / ".claude" / "settings.json", self.home / ".codex" / "hooks.json"]
+        first = [path.read_bytes() for path in paths]
+        for _ in range(2):
+            install_hooks.install(self.home, ROOT, self._page_ids(), ["claude", "codex"])
+            self.assertEqual([path.read_bytes() for path in paths], first)
+
+    def test_reinstall_keeps_existing_event_order(self):
+        install_hooks.install(self.home, ROOT, self._defaults(), ["claude", "codex"])
+        path = self.home / ".codex" / "hooks.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["hooks"] = {"Stop": data["hooks"]["Stop"],
+                         **{event: groups for event, groups in data["hooks"].items() if event != "Stop"}}
+        install_hooks._write_json(path, data)
+        before = path.read_bytes()
+        install_hooks.install(self.home, ROOT, list(reversed(self._defaults())), ["claude", "codex"])
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_changed_selection_keeps_other_groups_in_place(self):
+        wf_cmd = f'"python3" "{self.home}/.keel/workflow-hooks/wf_prompt.py" codex'
+        path = self._write(".codex/hooks.json", {"hooks": {
+            "Stop": [{"hooks": [{"type": "command", "command": "echo user-stop"}]}],
+            "UserPromptSubmit": [{"hooks": [{"type": "command", "command": wf_cmd}]}]}})
+        install_hooks.install(self.home, ROOT, self._defaults(), ["codex"])
+        before = json.loads(path.read_text(encoding="utf-8"))["hooks"]
+        ids = [hook_id for hook_id in self._defaults() if hook_id != "ask-after-wiki"] + ["long-prompt-brief"]
+        install_hooks.install(self.home, ROOT, ids, ["codex"])
+        after = json.loads(path.read_text(encoding="utf-8"))["hooks"]
+        self.assertEqual(list(after), list(before))
+        prompt = [group["hooks"][0]["command"] for group in after["UserPromptSubmit"]]
+        self.assertEqual(prompt[-1], wf_cmd)
+        self.assertIn("long_prompt_brief.py", prompt[-2])
+        for event, groups in before.items():
+            kept = [g for g in groups if "ask_after_wiki.py" not in g["hooks"][0]["command"]]
+            now = [g for g in after[event] if "long_prompt_brief.py" not in g["hooks"][0]["command"]]
+            self.assertEqual(now, kept)
+
     def test_install_claude_and_codex(self):
         result = install_hooks.install(
             self.home, ROOT, ["wiki-loader", "no-speculation"], ["claude", "codex"]

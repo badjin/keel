@@ -41,6 +41,7 @@ Use the installed skills for the stage you are performing.
 - Never type, impersonate, or fake the user's approval. The user must supply it.
 - Never edit `## Status` by hand; the Keel commands and approval hook own that field.
 - Never push, merge, or deploy as part of a workflow stage.
+- Never create or switch branches yourself. `run start` creates or keeps the work branch; spec and plan hold no branch steps.
 - If intent review reaches 3 rounds or phase review reaches 2 rounds, stop and ask the user.
 - Do not continue from a failed or stale review. Correct the document or implementation and rerun it.
 - A changed acceptance scenario requires a new spec review before plan or verification.

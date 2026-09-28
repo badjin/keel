@@ -141,16 +141,20 @@ def expand_shell_variables(text: str, home: str) -> str:
     return "".join(parts)
 
 
+def path_variants(text: str, home: str) -> tuple[str, ...]:
+    normalized = unicodedata.normalize("NFC", text)
+    expanded = unicodedata.normalize("NFC", expand_shell_variables(normalized, home))
+    return tuple(variant for base in (normalized, expanded)
+                 for variant in (base, base.replace("'", "").replace('"', "").replace("\\ ", " ")))
+
+
 def read_evidence(texts: list[str], abs_path: str, home: str) -> bool:
     page = unicodedata.normalize("NFC", str(abs_path))
     home_path = unicodedata.normalize("NFC", str(home)).rstrip("/")
     home_page = "~" + page[len(home_path):] if page.startswith(home_path + "/") else None
     for text in texts:
-        normalized = unicodedata.normalize("NFC", text)
-        expanded = expand_shell_variables(normalized, home_path)
-        variants = (normalized, normalized.replace("'", "").replace('"', "").replace("\\ ", " "),
-                    expanded, expanded.replace("'", "").replace('"', "").replace("\\ ", " "))
-        if any(page in variant or (home_page is not None and home_page in variant) for variant in variants):
+        if any(page in variant or (home_page is not None and home_page in variant)
+               for variant in path_variants(text, home_path)):
             return True
     return False
 

@@ -25,8 +25,11 @@ _STEP = re.compile(r"^\s*- \[([ x])\]")
 _RUN = re.compile(r"^\s*- Run: `([^`]+)`\s*$")
 _OUTWARD = re.compile(
     r"git push|git commit|gh pr create|gh pr merge|gh release|npm publish|"
-    r"vercel|netlify deploy|twine upload|docker push"
+    r"vercel|netlify deploy|twine upload|docker push|"
+    r"git switch\b|git checkout\s+(?:-[bB]|--orphan)\b|git branch\s+(?:-[cC]\s|[A-Za-z0-9_])|"
+    r"git worktree add\b|gh pr checkout\b"
 )
+_CHECKOUT_REF = re.compile(r"git checkout\s+[A-Za-z0-9_]")
 
 
 def parse(text: str) -> list[Phase]:
@@ -100,7 +103,7 @@ def outward_steps(text: str) -> list[str]:
             continue
         if fence_language == "text" or stripped.startswith(">"):
             continue
-        if _OUTWARD.search(line):
+        if _OUTWARD.search(line) or (_CHECKOUT_REF.search(line) and " -- " not in line):
             matches.append(line)
     return matches
 

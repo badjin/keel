@@ -56,6 +56,8 @@ header h1,.lede{max-width:74ch}
 .lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}
 html[data-embed="1"] .lang{display:none}
 html[data-embed="1"] section[aria-labelledby="install-h"],html[data-embed="1"] section[aria-labelledby="check-h"],html[data-embed="1"] footer{display:none}
+html[data-embed="1"] .wrap{padding-inline:12px}
+html[data-embed="1"] .panel{padding-inline:12px}
 .lang button{appearance:none;border:0;background:none;font:inherit;font-size:12.5px;line-height:20px;color:var(--muted);padding:3px 12px;border-radius:999px;cursor:pointer}
 .lang button:hover{color:var(--ink)}
 .lang button[aria-pressed="true"]{background:var(--sel);color:var(--sel-ink)}
@@ -224,6 +226,19 @@ function labelBox(svg, x, y, str){
   bg.setAttribute('width', b.width + 8); bg.setAttribute('height', b.height + 2);
 }
 
+const MIN_FIT = 0.8;
+function fitFlow(){
+  const svg = $('#flow');
+  const W = Number(svg.dataset.w), H = Number(svg.dataset.h);
+  if (!W) return;
+  let scale = 1;
+  if (document.documentElement.dataset.embed === '1') {
+    scale = Math.max(MIN_FIT, Math.min(1, svg.parentElement.clientWidth / W));
+  }
+  svg.setAttribute('width', Math.round(W * scale));
+  svg.setAttribute('height', Math.round(H * scale));
+}
+
 function renderFlow(stage){
   const svg = $('#flow');
   svg.replaceChildren();
@@ -235,8 +250,7 @@ function renderFlow(stage){
   const W = G.LW + cols * G.CW + G.PAD;
   const H = lanes.length * G.LH;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('width', W);
-  svg.setAttribute('height', H);
+  svg.dataset.w = W; svg.dataset.h = H; fitFlow();
   svg.setAttribute('aria-label', t(stage.name) + (lang === 'en' ? ' flow diagram. Select a box to see its description below.' : ' 흐름도. 상자를 누르면 아래에 설명이 나옵니다.'));
 
   const defs = el('defs', {}, svg);
@@ -445,5 +459,6 @@ if (document.documentElement.dataset.embed === '1') {
   const reportHeight = () => parent.postMessage({type:'keel-map-height',height:Math.ceil(document.querySelector('.wrap').getBoundingClientRect().height)},location.origin);
   addEventListener('load', reportHeight);
   new ResizeObserver(reportHeight).observe(document.querySelector('.wrap'));
+  new ResizeObserver(() => requestAnimationFrame(fitFlow)).observe(document.querySelector('.flow-scroll'));
 }
 </script></body></html>

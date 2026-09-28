@@ -248,8 +248,8 @@ registered in `~/.claude/settings.json` or `~/.codex/hooks.json`, makes every
 one of those hooks exit 2 on its next run (the scripts they point to are
 gone), which blocks the CLI until you fix it.
 
-1. **Remove the workflow first.** Start the server again (step 2 above),
-   then press **Remove workflow** ("워크플로우 제거" in Korean) on the Workflow tab.
+1. **Remove the workflow first.** Start the server again as in section 2,
+   "Start the local server", above, then press **Remove workflow** ("워크플로우 제거" in Korean) on the Workflow tab.
    The workflow has no by-hand removal path, so this button is required.
 2. **Remove the hooks**, while `~/.keel` still exists, using
    one of:

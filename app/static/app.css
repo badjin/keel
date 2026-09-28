@@ -724,6 +724,19 @@ input[type="radio"], input[type="checkbox"], .due-slip input[type="range"] {
   border-radius: 8px;
   margin: 0 0 24px;
 }
+.shell:has(#panel-workflow:not([hidden])) {
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+.shell:has(#panel-workflow:not([hidden])) .toc {
+  display: none;
+}
+#panel-workflow {
+  max-width: none;
+}
+#panel-workflow > :not(#wf-map) {
+  margin-inline: auto;
+  max-width: 760px;
+}
 #panel-workflow .choice-card:has(input:disabled) {
   cursor: not-allowed;
   opacity: 0.5;

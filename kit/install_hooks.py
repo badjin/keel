@@ -95,14 +95,6 @@ def _pop_wf_groups(hooks_by_event: dict) -> tuple[dict, dict]:
     return rest, workflow
 
 
-def _append_wf_groups(hooks_by_event: dict, workflow: dict, original: dict) -> dict:
-    if not workflow:
-        return hooks_by_event
-    return {event: hooks_by_event.get(event, []) + workflow.get(event, [])
-            for event in dict.fromkeys([*original, *hooks_by_event])
-            if event in hooks_by_event or event in workflow}
-
-
 def _strip_kit_handlers(hooks_by_event: dict) -> dict:
     """Removes kit-owned command entries; drops groups/events left empty."""
     result = {}
@@ -134,6 +126,47 @@ def _add_handlers(hooks_by_event: dict, entries: list[dict], omit_matcher_always
         result.setdefault(event, [])
         result[event].append(group)
     return result
+
+
+def _script_of(cmd: str) -> str:
+    return cmd.rsplit("/", 1)[-1].split('"', 1)[0]
+
+
+def _merge_kit_groups(hooks_by_event: dict, entries: list[dict], omit_matcher_always: bool = False) -> dict:
+    """Refreshes kit groups where they already are; new ones go before the event's workflow groups."""
+    fresh = {}
+    for entry in entries:
+        handler = {"type": "command", "command": entry["command"], "timeout": entry["timeout"]}
+        group = {"hooks": [handler]}
+        if not omit_matcher_always and entry["matcher"]:
+            group = {"matcher": entry["matcher"], "hooks": [handler]}
+        fresh[(entry["event"], _script_of(entry["command"]))] = group
+    placed = set()
+    result = {}
+    for event, groups in hooks_by_event.items():
+        kept = []
+        for group in groups:
+            handlers = group.get("hooks", [])
+            kit = [h for h in handlers if _is_kit_command(h.get("command", ""))]
+            if not kit:
+                kept.append(group)
+            elif len(kit) < len(handlers):
+                kept.append({**group, "hooks": [h for h in handlers if h not in kit]})
+            else:
+                key = (event, _script_of(kit[0].get("command", "")))
+                if key in fresh and key not in placed:
+                    kept.append(fresh[key])
+                    placed.add(key)
+        result[event] = kept
+    for key, group in fresh.items():
+        if key in placed:
+            continue
+        groups = result.setdefault(key[0], [])
+        at = next((index for index, existing in enumerate(groups)
+                   if existing.get("hooks") and all(_is_wf_command(h.get("command", "")) for h in existing["hooks"])),
+                  len(groups))
+        groups.insert(at, group)
+    return {event: groups for event, groups in result.items() if groups}
 
 
 def _hook_command(python: str, home: Path, script: str, target: str = "") -> str:
@@ -328,8 +361,8 @@ def codex_trust_status(home: Path, repo_root: Path) -> dict:
     The key is built the same way Codex derives it from `~/.codex/hooks.json`:
     `<hooks.json path>:<event>:<group index>:<handler index>` — the group and
     handler indexes are each kit entry's position in `install()`'s
-    hooks_by_event[event] list (one handler per group, since `_add_handlers`
-    appends a fresh group per entry when writing Codex's file)."""
+    hooks_by_event[event] list (one handler per group, since `_merge_kit_groups`
+    writes one handler per kit group when writing Codex's file)."""
     home = Path(home)
     hooks_json_path = home / ".codex" / "hooks.json"
     hooks_json = _read_json(hooks_json_path, {"hooks": {}})
@@ -428,7 +461,6 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
         selected = [h for h in _select_hooks(catalogue, hook_ids, "claude")
                     if h["id"] not in handoff_ids or "claude" in handoff_targets or ("grok" in targets and "grok" in handoff_targets)]
         original_hooks = settings.get("hooks", {})
-        hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
         entries = [
             {
                 "event": h["event"],
@@ -438,8 +470,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             }
             for h in selected
         ]
-        hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=False)
-        hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
+        hooks_by_event = _merge_kit_groups(original_hooks, entries, omit_matcher_always=False)
         settings["hooks"] = hooks_by_event
         if "automatic-handoff" in hook_ids and "claude" in handoff_targets:
             _set_statusline(settings, home, python, "claude")
@@ -460,7 +491,6 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
         selected = [h for h in _select_hooks(catalogue, hook_ids, "codex")
                     if h["id"] not in handoff_ids or "codex" in handoff_targets]
         original_hooks = hooks_json.get("hooks", {})
-        hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
         entries = [
             {
                 "event": h["event"],
@@ -470,8 +500,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             }
             for h in selected
         ]
-        hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=True)
-        hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
+        hooks_by_event = _merge_kit_groups(original_hooks, entries, omit_matcher_always=True)
         hooks_json["hooks"] = hooks_by_event
         _write_json(hooks_json_path, hooks_json)
         installed["codex"] = [h["id"] for h in selected]
@@ -518,7 +547,6 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
             selected = [h for h in _select_hooks(catalogue, hook_ids, "claude")
                         if h["id"] not in handoff_ids or "grok" in handoff_targets]
             original_hooks = grok_json.get("hooks", {})
-            hooks_by_event, wf_groups = _pop_wf_groups(_strip_kit_handlers(original_hooks))
             entries = [
                 {
                     "event": h["event"],
@@ -528,8 +556,7 @@ def install(home: Path, repo_root: Path, hook_ids: list[str], targets: list[str]
                 }
                 for h in selected
             ]
-            hooks_by_event = _add_handlers(hooks_by_event, entries, omit_matcher_always=False)
-            hooks_by_event = _append_wf_groups(hooks_by_event, wf_groups, original_hooks)
+            hooks_by_event = _merge_kit_groups(original_hooks, entries, omit_matcher_always=False)
             grok_json["hooks"] = hooks_by_event
             _write_json(grok_path, grok_json)
             installed["grok"] = [h["id"] for h in selected]

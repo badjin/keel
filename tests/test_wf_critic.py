@@ -129,6 +129,21 @@ class CriticTest(unittest.TestCase):
         with self.assertRaises(critic.Refused):
             self.review("plan")
 
+    def test_plan_with_branch_step_fails_without_cli(self):
+        self.approve()
+        spec = self.folder / "spec.md"
+        spec.write_text("# Spec\n- Intent: intent.md\n## Acceptance Scenarios\n- S1 See result.\n", encoding="utf-8")
+        self.review("spec")
+        (self.folder / "plan.md").write_text(
+            "---\nkeel_plan: 1\n---\n## Phase 1: Work\n- [x] Run `git switch -c feature/x`\n", encoding="utf-8")
+        self.out.unlink()
+        verdict, record, checks, _ = self.review("plan")
+        self.assertEqual(verdict, "FAIL")
+        self.assertTrue(checks[0].startswith("CHECK no-outward-steps: FAIL"))
+        self.assertIn("git switch -c feature/x", checks[0])
+        self.assertFalse(self.out.exists())
+        self.assertNotIn("## Answer", record.read_text(encoding="utf-8"))
+
     def test_spec_scenarios_and_plan_gate(self):
         self.approve()
         spec = self.folder / "spec.md"
@@ -299,6 +314,43 @@ class CriticTest(unittest.TestCase):
         verdict, _, checks, _ = self.review()
         self.assertEqual(verdict, "FAIL")
         self.assertIn("unread knowledge base page", checks[0])
+
+    def assert_write_is_not_a_read(self, command):
+        self.transcript.write_text(json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": command}}]}}))
+        verdict, _, checks, _ = self.review()
+        self.assertEqual(verdict, "FAIL")
+        self.assertIn("unread knowledge base page", checks[0])
+        self.assertFalse(self.out.exists())
+
+    def test_split_double_quoted_work_folder_write_does_not_prove_kb_read(self):
+        self.assert_write_is_not_a_read(
+            f'cat > "$HOME"/kb/raw/work/{self.folder.name}/intent.md <<EOF\n'
+            f"- `{self.kb / 'index.md'}` — Workflow overview.\nEOF")
+
+    def test_single_quoted_segment_work_folder_write_does_not_prove_kb_read(self):
+        self.assert_write_is_not_a_read(
+            f"cat > {self.root}/'kb'/raw/work/{self.folder.name}/intent.md <<EOF\n"
+            f"- `{self.kb / 'index.md'}` — Workflow overview.\nEOF")
+
+    def test_escaped_space_work_folder_write_does_not_prove_kb_read(self):
+        spaced = self.root / "my kb"
+        spaced.mkdir()
+        (spaced / "index.md").write_text("Workflow overview.\n", encoding="utf-8")
+        folder = work.new_work(spaced, SOURCE_KIT, "spaced", "en", "cli", "2026-09-28")
+        (folder / "intent.md").write_text((self.folder / "intent.md").read_text(encoding="utf-8"), encoding="utf-8")
+        work.add_session(folder, "default", "claude", str(self.transcript))
+        self.kb, self.folder = spaced, folder
+        escaped = str(folder).replace(" ", "\\ ")
+        self.assert_write_is_not_a_read(
+            f"cat > {escaped}/intent.md <<EOF\n- `{spaced / 'index.md'}` — Workflow overview.\nEOF")
+
+    def test_quoted_read_still_proves_kb_read(self):
+        self.transcript.write_text(json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": 'cat "$HOME"/kb/index.md'}}]}}))
+        verdict, _, checks, _ = self.review()
+        self.assertEqual(verdict, "PASS")
+        self.assertIn("CHECK kb-consulted: PASS", checks[-1])
 
     def test_kb_assignment_after_and_proves_read(self):
         for command in (f"cd /tmp && KB={self.kb} && cat $KB/index.md",

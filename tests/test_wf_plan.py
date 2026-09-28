@@ -77,6 +77,19 @@ class PlanTest(unittest.TestCase):
         self.assertTrue(plan.outward_steps("- [ ] git push origin main\n"))
         self.assertEqual(plan.outward_steps("> - [ ] git push origin main\n"), [])
 
+    def test_outward_steps_refuses_branch_changes(self):
+        for line in ("git switch -c feature/x", "git switch main", "git checkout -b x", "git checkout -B x",
+                     "git checkout --orphan x", "git checkout main", "git branch topic", "git branch -c a b",
+                     "git worktree add ../w", "gh pr checkout 12", "git commit -m x"):
+            with self.subTest(line=line):
+                self.assertTrue(plan.outward_steps(f"- [x] Run `{line}`\n"))
+
+    def test_outward_steps_allows_read_only_git(self):
+        for line in ("git status", "git diff", "git log --oneline", "git branch", "git branch --show-current",
+                     "git branch -a", "git checkout -- README.md", "git checkout HEAD -- README.md"):
+            with self.subTest(line=line):
+                self.assertEqual(plan.outward_steps(f"- [x] Run `{line}`\n"), [])
+
     def test_tick_phase_preserves_hash(self):
         ticked = plan.tick_phase(PLAN, 1)
         phases = plan.parse(ticked)
