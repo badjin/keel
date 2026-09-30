@@ -16,62 +16,6 @@ Claude Code / Codex 와 함께 쓰는 개인 지식 베이스(KB)를 로컬 웹 
 - **CLI** 는 터미널(명령어를 치는 검은 화면)에서 쓰는 프로그램을
   뜻합니다. 여기서는 `claude`, `codex`, `gh` 세 가지를 말합니다.
 
-## 스크린샷
-
-### 설치 화면
-
-**혹** — Claude Code, Codex, Grok 에 설치할 혹을 고릅니다.
-
-<img src="screenshots/ko/01-hooks.png" alt="혹" width="760">
-
-**지식 베이스** — 지식 베이스 폴더를 만들 위치를 고릅니다.
-
-<img src="screenshots/ko/02-knowledge-base.png" alt="지식 베이스" width="760">
-
-**지식 베이스 — 폴더로 만들기** — 내 컴퓨터의 git 폴더로 만들 수도 있습니다.
-
-<img src="screenshots/ko/03-knowledge-base-folders.png" alt="지식 베이스 — 폴더로 만들기" width="760">
-
-**GitHub (선택)** — gh 로그인으로 GitHub 를 연결합니다.
-
-<img src="screenshots/ko/04-github.png" alt="GitHub (선택)" width="760">
-
-**GitHub (선택) — 토큰** — 개인 액세스 토큰을 직접 입력할 수도 있습니다.
-
-<img src="screenshots/ko/05-github-token.png" alt="GitHub (선택) — 토큰" width="760">
-
-**워크플로우 (선택)** — 파이프라인 지도와 설치될 항목을 보여 줍니다.
-
-<img src="screenshots/ko/06-workflow.png" alt="워크플로우 (선택)" width="760">
-
-**완료** — 설치를 마치고, 하네스 지도를 열고, 되돌리기 순서를 확인합니다.
-
-<img src="screenshots/ko/07-finish.png" alt="완료" width="760">
-
-### 워크플로우 승인 페이지
-
-**승인 페이지** — intent 를 제출하면 브라우저에 승인 페이지가 열립니다. 버튼은 화면 아래에 고정됩니다.
-
-<img src="screenshots/ko/08-approval-page.png" alt="승인 페이지" width="760">
-
-**수정 요청** — 승인하지 않고 메모와 함께 수정을 요청합니다.
-
-<img src="screenshots/ko/09-approval-request-changes.png" alt="수정 요청" width="760">
-
-**승인 완료** — 승인을 누르면 기록이 남고 에이전트가 이어서 진행합니다.
-
-<img src="screenshots/ko/10-approved.png" alt="승인 완료" width="760">
-
-### 하네스 지도
-
-**하네스 지도 — 승인** — 파이프라인 지도의 승인 단계입니다.
-
-<img src="screenshots/ko/11-map-approval.png" alt="하네스 지도 — 승인" width="760">
-
-**하네스 지도 — 실행** — 리뷰가 실패했을 때 다음 수정 단계를 알려 주는 실행 단계입니다.
-
-<img src="screenshots/ko/12-map-run.png" alt="하네스 지도 — 실행" width="760">
-
 ## Keel 받기
 
 셋 중 하나를 고르세요. 어느 방법이든 마지막에는 같은 설치 화면이 브라우저에 열립니다.
@@ -136,6 +80,73 @@ python3 app/server.py
 4. **다 쓴 뒤 서버를 끄려면**, 서버를 켠 터미널 창으로 돌아가
    `Control` 키와 `C` 키를 같이 누릅니다 (Ctrl+C). 창을 그냥 닫아도
    됩니다.
+
+## 스크린샷
+
+그룹을 펼치면 화면이 보입니다.
+
+<details>
+<summary><b>설치 화면</b> (7)</summary>
+
+**혹** — Claude Code, Codex, Grok 에 설치할 혹을 고릅니다.
+
+<img src="screenshots/ko/01-hooks.png" alt="혹" width="760">
+
+**지식 베이스** — 지식 베이스 폴더를 만들 위치를 고릅니다.
+
+<img src="screenshots/ko/02-knowledge-base.png" alt="지식 베이스" width="760">
+
+**지식 베이스 — 폴더로 만들기** — 내 컴퓨터의 git 폴더로 만들 수도 있습니다.
+
+<img src="screenshots/ko/03-knowledge-base-folders.png" alt="지식 베이스 — 폴더로 만들기" width="760">
+
+**GitHub (선택)** — gh 로그인으로 GitHub 를 연결합니다.
+
+<img src="screenshots/ko/04-github.png" alt="GitHub (선택)" width="760">
+
+**GitHub (선택) — 토큰** — 개인 액세스 토큰을 직접 입력할 수도 있습니다.
+
+<img src="screenshots/ko/05-github-token.png" alt="GitHub (선택) — 토큰" width="760">
+
+**워크플로우 (선택)** — 파이프라인 지도와 설치될 항목을 보여 줍니다.
+
+<img src="screenshots/ko/06-workflow.png" alt="워크플로우 (선택)" width="760">
+
+**완료** — 설치를 마치고, 하네스 지도를 열고, 되돌리기 순서를 확인합니다.
+
+<img src="screenshots/ko/07-finish.png" alt="완료" width="760">
+
+</details>
+
+<details>
+<summary><b>워크플로우 승인 페이지</b> (3)</summary>
+
+**승인 페이지** — intent 를 제출하면 브라우저에 승인 페이지가 열립니다. 버튼은 화면 아래에 고정됩니다.
+
+<img src="screenshots/ko/08-approval-page.png" alt="승인 페이지" width="760">
+
+**수정 요청** — 승인하지 않고 메모와 함께 수정을 요청합니다.
+
+<img src="screenshots/ko/09-approval-request-changes.png" alt="수정 요청" width="760">
+
+**승인 완료** — 승인을 누르면 기록이 남고 에이전트가 이어서 진행합니다.
+
+<img src="screenshots/ko/10-approved.png" alt="승인 완료" width="760">
+
+</details>
+
+<details>
+<summary><b>하네스 지도</b> (2)</summary>
+
+**하네스 지도 — 승인** — 파이프라인 지도의 승인 단계입니다.
+
+<img src="screenshots/ko/11-map-approval.png" alt="하네스 지도 — 승인" width="760">
+
+**하네스 지도 — 실행** — 리뷰가 실패했을 때 다음 수정 단계를 알려 주는 실행 단계입니다.
+
+<img src="screenshots/ko/12-map-run.png" alt="하네스 지도 — 실행" width="760">
+
+</details>
 
 ## 다섯 개의 탭
 
