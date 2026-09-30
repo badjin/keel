@@ -8,7 +8,7 @@ from pathlib import Path
 from kit import install_hooks
 from kit.errors import KitValueError
 
-from . import fsutil, map_render, rules_block
+from . import fsutil, ladder, map_render, rules_block
 
 
 def _sha(text: bytes) -> str:
@@ -78,11 +78,22 @@ def _remove_target(home: Path, target: str, metadata: dict, manifest: dict,
             if not any(skill.parent.iterdir()):
                 skill.parent.rmdir()
 
+    agents_dir = cli_home / "agents"
+    if target == "claude" and agents_dir.is_dir():
+        unlinked = False
+        for agent in sorted(agents_dir.glob("keel-hotfix-*.md")):
+            if "<!-- keel -->" in agent.read_text(encoding="utf-8"):
+                agent.unlink()
+                removed.append(str(agent))
+                unlinked = True
+        if unlinked and not any(agents_dir.iterdir()):
+            agents_dir.rmdir()
+
 
 def _copy_workflow(source: Path, dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(source, dest, ignore=shutil.ignore_patterns("hooks", "skills", "__pycache__"))
+    shutil.copytree(source, dest, ignore=shutil.ignore_patterns("agents", "hooks", "skills", "__pycache__"))
 
 
 def install(home: Path, repo_root: Path, targets: list[str], critic_cli: str,
@@ -107,6 +118,13 @@ def install(home: Path, repo_root: Path, targets: list[str], critic_cli: str,
     old_rules = old_metadata.get("rules", {})
     written, backups, removed = [], [], []
     files, rules, hooks = {}, {}, {}
+    ladder_path = keel_home / "ladder.json"
+    if not ladder_path.exists():
+        fsutil.atomic_write_json(ladder_path, ladder.DEFAULTS)
+    try:
+        steps = ladder.load(keel_home).steps
+    except ladder.LadderError as exc:
+        raise KitValueError("workflow_bad_ladder") from exc
 
     def record(path: Path) -> None:
         written.append(str(path))
@@ -159,6 +177,27 @@ def install(home: Path, repo_root: Path, targets: list[str], critic_cli: str,
                 backup(dest)
             fsutil.atomic_write_text(dest, _render(skill_source.read_text(encoding="utf-8"), keel_wf, kb))
             record(dest)
+
+        if target == "claude":
+            template = (source / "agents" / "keel-hotfix.md").read_text(encoding="utf-8")
+            agents_home = cli_home / "agents"
+            for number, step in enumerate(steps, 1):
+                dest = agents_home / f"keel-hotfix-{number}.md"
+                if dest.exists() and "<!-- keel -->" not in dest.read_text(encoding="utf-8"):
+                    continue
+                if dest.exists() and _sha(dest.read_bytes()) != old_metadata.get("files", {}).get(str(dest)):
+                    backup(dest)
+                text = (template.replace("{{STEP}}", str(number))
+                        .replace("{{MODEL}}", step.claude["model"])
+                        .replace("{{EFFORT}}", step.claude["effort"]))
+                fsutil.atomic_write_text(dest, text)
+                record(dest)
+            for stale in sorted(agents_home.glob("keel-hotfix-*.md")):
+                number = stale.stem.removeprefix("keel-hotfix-")
+                if (number.isdigit() and int(number) > len(steps)
+                        and "<!-- keel -->" in stale.read_text(encoding="utf-8")):
+                    stale.unlink()
+                    removed.append(str(stale))
 
         settings_path = cli_home / ("settings.json" if target == "claude" else "hooks.json")
         existed = settings_path.exists()

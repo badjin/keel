@@ -26,6 +26,10 @@ MESSAGES = {
         "en": "Workflow critic must be claude or codex",
         "ko": "워크플로우 리뷰 CLI는 claude 또는 codex여야 합니다",
     },
+    "workflow_bad_ladder": {
+        "en": "The workflow ladder.json is invalid; fix or delete ~/.keel/ladder.json",
+        "ko": "워크플로우 ladder.json이 올바르지 않습니다. ~/.keel/ladder.json을 고치거나 삭제하세요",
+    },
     "path_required": {"en": "A path is required", "ko": "경로가 필요합니다"},
     "gh_cli_token_missing": {
         "en": "Could not find a gh CLI login token",

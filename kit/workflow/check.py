@@ -85,7 +85,7 @@ def run_check(keel_home: Path) -> tuple[list[dict], int]:
             path = Path(path_text)
             if not installed:
                 status = "missing"
-            elif item_id == "wf:map":
+            elif item_id in ("wf:map", "wf:ladder"):
                 status = "installed" if path.is_file() else "missing"
             elif item["kind"] == "rules":
                 status = _rules_status(path, metadata.get("rules", {}).get(str(path), {}).get("sha256"))

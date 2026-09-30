@@ -446,7 +446,7 @@ class CriticTest(unittest.TestCase):
 
     def test_third_phase_review_requires_extra_review(self):
         state = work.load_state(self.folder)
-        state["review_fails"]["phase-1"] = 2
+        state["review_fails"]["phase-1"] = 3
         fsutil.atomic_write_json(self.folder / "state.json", state)
         with self.assertRaises(critic.Refused):
             self.review("phase", phase=1, repo=self.root)

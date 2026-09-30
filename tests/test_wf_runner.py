@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from kit.workflow import docs, fsutil, runner, work
+from kit.workflow import critic, docs, fsutil, runner, work
 
 
 PLAN = """---
@@ -113,6 +114,29 @@ class RunnerTest(unittest.TestCase):
 
     def review(self, verdict):
         return lambda *args, **kwargs: (verdict, self.folder / "records" / "review.md", [], "")
+
+    def test_ladder_limit_refuses_third_review(self):
+        self.start()
+        fsutil.atomic_write_json(self.home / "ladder.json", {
+            "phase_review_limit": 2,
+            "steps": [{"claude": {"model": "sonnet", "effort": "xhigh"},
+                       "codex": {"model": None, "effort": "high"}}],
+        })
+        state = work.load_state(self.folder)
+        state["review_fails"] = {"phase-1": 2}
+        fsutil.atomic_write_json(self.folder / "state.json", state)
+        (self.repo / "file.txt").write_text("after\n")
+        with self.assertRaisesRegex(runner.RunError, "phase review limit reached"):
+            runner.run_phase(self.home, self.kb, self.folder, 1)
+
+    def test_invalid_ladder_changes_nothing(self):
+        self.start()
+        self.home.mkdir(exist_ok=True)
+        (self.home / "ladder.json").write_text("{")
+        before = (self.folder / "state.json").read_bytes()
+        with self.assertRaisesRegex(runner.RunError, "ladder.json"):
+            runner.run_phase(self.home, self.kb, self.folder, 1, review=self.review("PASS"))
+        self.assertEqual((self.folder / "state.json").read_bytes(), before)
 
     def test_passing_phase_commits_and_ticks(self):
         self.start()
@@ -237,6 +261,87 @@ class RunnerTest(unittest.TestCase):
         self.start()
         with self.assertRaises(runner.RunError):
             runner.run_phase(self.home, self.kb, self.folder, 2, review=self.review("PASS"))
+
+    def counting_plan(self, extra=""):
+        self.counter = self.folder.parent / "counter.txt"
+        command = f'python3 -c "open(r\'{self.counter}\', \'a\').write(\'x\');{extra}"'
+        self.write_plan(command)
+        self.state["reviews"]["plan"]["hashes"]["plan"] = docs.plan_hash((self.folder / "plan.md").read_text())
+        self.save_state()
+        self.start()
+
+    def runs(self):
+        return len(self.counter.read_text()) if self.counter.exists() else 0
+
+    def errored_then_pass(self):
+        calls = []
+
+        def review(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise critic.ReviewError("boom")
+            return "PASS", self.folder / "records" / "review.md", [], ""
+        return review
+
+    def first_run_errors(self, review):
+        (self.repo / "file.txt").write_text("after\n")
+        with self.assertRaises(runner.RunError):
+            runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+
+    def test_gate_skips_tests_on_review_error_retry(self):
+        self.counting_plan()
+        review = self.errored_then_pass()
+        self.first_run_errors(review)
+        result = runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual(result["status"], "done")
+        self.assertEqual(self.runs(), 1)
+        self.assertIn("SKIPPED", Path(result["tests_record"]).read_text())
+        self.assertIn("gate", result)
+
+    def test_gate_reruns_when_tracked_file_changes(self):
+        self.counting_plan()
+        review = self.errored_then_pass()
+        self.first_run_errors(review)
+        (self.repo / "file.txt").write_text("changed again\n")
+        runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual(self.runs(), 2)
+
+    def test_gate_kill_switch_reruns(self):
+        self.counting_plan()
+        review = self.errored_then_pass()
+        self.first_run_errors(review)
+        with patch.dict(os.environ, {"KEEL_WF_NO_GATE_CACHE": "1"}):
+            result = runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual(self.runs(), 2)
+        self.assertNotIn("gate", result)
+
+    def test_command_that_changes_repo_is_never_cached(self):
+        self.counting_plan(extra="open(\'made.txt\', \'a\').write(\'y\')")
+        review = self.errored_then_pass()
+        self.first_run_errors(review)
+        self.assertNotIn("gate", work.load_state(self.folder)["run"]["phases"]["1"])
+        runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual(self.runs(), 2)
+
+    def test_different_command_lists_do_not_share_entry(self):
+        self.counting_plan()
+        review = self.errored_then_pass()
+        self.first_run_errors(review)
+        self.write_plan(f'python3 -c "open(r\'{self.counter}\', \'a\').write(\'z\')"')
+        runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual(self.runs(), 2)
+
+    def test_no_change_phase_stores_no_gate(self):
+        self.counting_plan()
+        result = runner.run_phase(self.home, self.kb, self.folder, 1, review=self.review("PASS"))
+        self.assertEqual(result["status"], "no-change")
+        self.assertNotIn("gate", result)
+        self.assertNotIn("gate", work.load_state(self.folder)["run"]["phases"]["1"])
+
+    def test_content_tree_leaves_real_index_alone(self):
+        (self.repo / "new.txt").write_text("n\n")
+        runner._content_tree(self.repo)
+        self.assertEqual(self.git("diff", "--cached", "--name-only"), "")
 
 
 if __name__ == "__main__":

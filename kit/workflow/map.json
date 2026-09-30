@@ -882,15 +882,17 @@
             "ko": "critic phase"
           },
           "desc": {
-            "en": "Reviews the committed phase; a FAIL loop allows at most two retries.",
-            "ko": "커밋된 단계를 검토하며 FAIL 시 최대 두 번 재시도합니다."
+            "en": "Reviews the committed phase; on FAIL the runner prints a next fix line (agent and effort). The limit is set in ~/.keel/ladder.json (default 3).",
+            "ko": "커밋된 단계를 검토하며 FAIL 시 다음 수정 단계(에이전트와 노력 수준)를 출력합니다. 횟수 상한은 ~/.keel/ladder.json에서 설정합니다(기본값 3)."
           },
           "src": "{KEEL_HOME}/workflow/keel_wf.py (critic phase)",
           "kind": "d",
           "tag": "loop",
           "install": [
             "wf:cli",
-            "wf:critic-prompts"
+            "wf:critic-prompts",
+            "wf:ladder",
+            "wf:agents"
           ]
         },
         {
@@ -934,8 +936,8 @@
           "phase_review",
           "implement",
           {
-            "en": "FAIL, max 2",
-            "ko": "실패, 최대 2회"
+            "en": "FAIL, next fix step",
+            "ko": "실패, 다음 수정 단계"
           },
           [
             "loop",
@@ -963,7 +965,9 @@
       "install": [
         "wf:cli",
         "wf:skill:keel-run",
-        "wf:critic-prompts"
+        "wf:critic-prompts",
+        "wf:ladder",
+        "wf:agents"
       ]
     },
     {

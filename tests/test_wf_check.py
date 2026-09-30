@@ -80,6 +80,14 @@ class WorkflowCheckTest(unittest.TestCase):
         rows, _ = check.run_check(self.home / ".keel")
         self.assertEqual(expected, {row["id"] for row in rows if row["id"] in expected})
 
+    def test_ladder_and_agents_rows_ignore_hand_edits(self):
+        (self.home / ".keel" / "ladder.json").write_text('{"phase_review_limit": 9, "steps": []}',
+                                                          encoding="utf-8")
+        rows, _ = check.run_check(self.home / ".keel")
+        picked = [row for row in rows if row["id"] in ("wf:ladder", "wf:agents")]
+        self.assertEqual(sorted(row["id"] for row in picked), ["wf:agents", "wf:ladder"])
+        self.assertTrue(all(row["status"] == "installed" for row in picked))
+
     def test_missing_skill(self):
         (self.home / ".claude/skills/keel-intent/SKILL.md").unlink()
         rows, exit_code = check.run_check(self.home / ".keel")

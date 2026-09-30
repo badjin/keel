@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from kit.workflow import cli, docs, fsutil, work
 
@@ -95,6 +96,34 @@ class WorkflowCliTest(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn("audit-", output)
         self.assertIn("intent not approved", output)
+
+    def _phase_output(self, verdict, fails):
+        self.invoke("new", "example")
+        folder = work.resolve(self.kb, "example")
+        state = work.load_state(folder)
+        state["review_fails"] = {"phase-1": fails}
+        fsutil.atomic_write_json(folder / "state.json", state)
+        result = {"status": "review-failed", "tests_record": "tests.md", "verdict": verdict}
+        with patch("kit.workflow.cli.runner.run_phase", return_value=result):
+            return self.invoke("run", "phase", "1", "--work", "example")[1]
+
+    def test_fail_prints_next_fix_step(self):
+        first = self._phase_output("FAIL", 1)
+        self.assertIn("next fix: step 1 of 2", first)
+        self.assertIn("sonnet/xhigh (agent keel-hotfix-1)", first)
+        second = self._phase_output("FAIL", 2)
+        self.assertIn("next fix: step 2 of 2", second)
+        self.assertIn("opus/xhigh (agent keel-hotfix-2)", second)
+
+    def test_fail_at_limit_prints_no_further_step(self):
+        output = self._phase_output("FAIL", 3)
+        self.assertIn("no further fix step", output)
+        self.assertNotIn("next fix", output)
+
+    def test_error_prints_rerun_line_only(self):
+        output = self._phase_output("ERROR", 0)
+        self.assertIn("review errored", output)
+        self.assertNotIn("next fix", output)
 
 
 if __name__ == "__main__":

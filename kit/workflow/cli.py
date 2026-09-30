@@ -6,7 +6,7 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
-from . import check, close, critic, docs, fsutil, runner, work
+from . import check, close, critic, docs, fsutil, ladder, runner, work
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -57,6 +57,25 @@ def _origin() -> str:
     result = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
                             capture_output=True, text=True)
     return str(Path(result.stdout.strip()).resolve()) if result.returncode == 0 else str(cwd)
+
+
+def _print_next_step(keel_home: Path, folder: Path, n: int, verdict) -> None:
+    if verdict == "ERROR":
+        print(f"review errored — rerun run phase {n}; no fix needed")
+        return
+    if verdict != "FAIL":
+        return
+    config = ladder.load(keel_home)
+    fails = work.load_state(folder).get("review_fails", {}).get(f"phase-{n}", 0)
+    step = ladder.next_step(fails, config)
+    if step is None:
+        print("no further fix step — stop and ask the user")
+        return
+    index = min(fails, len(config.steps))
+    codex_model = step.codex["model"] or "current model"
+    print(f"next fix: step {index} of {len(config.steps)} — claude: "
+          f"{step.claude['model']}/{step.claude['effort']} (agent keel-hotfix-{index}); "
+          f"codex: {codex_model}/{step.codex['effort']}")
 
 
 def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) -> int:
@@ -126,6 +145,7 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
                     for line in record_text.splitlines():
                         if line.startswith("CHECK "):
                             print(line)
+                _print_next_step(keel_home, folder, args.phase, result.get("verdict"))
             return 0 if result["status"] in ("done", "no-change") else 1
 
         if args.command in ("verify", "audit", "archive"):
@@ -157,12 +177,18 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
             print("--repo required")
             return 2
         folder = work.resolve(kb, args.work) if args.work else None
+        limit = {}
+        if args.stage == "phase":
+            try:
+                limit["phase_limit"] = ladder.load(keel_home).phase_review_limit
+            except ladder.LadderError as error:
+                raise critic.Refused(str(error)) from error
         verdict, record, checks, answer = critic.run_review(
             args.stage, keel_home=keel_home, kb=kb, folder=folder,
             repo=Path(args.repo).resolve() if args.repo else None,
             phase=args.phase, request=args.request, base=args.base,
             statements=Path(args.statements).resolve() if args.statements else None,
-            extra_review=args.extra_review,
+            extra_review=args.extra_review, **limit,
         )
         print(verdict)
         if record:

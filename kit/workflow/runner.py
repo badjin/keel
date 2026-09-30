@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import tempfile
+from datetime import datetime
 from pathlib import Path
 
-from . import approval, critic, docs, fsutil, plan, work
+from . import approval, critic, docs, fsutil, ladder, plan, work
 
 
 class RunError(Exception):
@@ -21,6 +23,20 @@ def _git(repo: Path, *args: str) -> str:
     if result.returncode:
         raise RunError(result.stderr.strip() or f"git {args[0]} failed")
     return result.stdout.strip()
+
+
+def _content_tree(repo: Path) -> str:
+    # The index file must not exist yet: git rejects an empty existing index file.
+    with tempfile.TemporaryDirectory() as tmp:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(tmp) / "index")}
+        out = ""
+        for args in (("read-tree", "HEAD"), ("add", "-A"), ("write-tree",)):
+            result = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace", env=env)
+            if result.returncode:
+                raise RunError(result.stderr.strip() or f"git {args[0]} failed")
+            out = result.stdout.strip()
+        return out
 
 
 def _plan(folder: Path) -> tuple[str, list[plan.Phase]]:
@@ -80,8 +96,29 @@ def _tests_record(folder: Path, n: int, results: list[tuple[str, int, str]]) -> 
     return record
 
 
+def _skipped_record(folder: Path, n: int, gate: dict) -> Path:
+    record = folder / "records" / f"phase-{n}-tests-{fsutil.stamp()}.md"
+    suffix = 2
+    while record.exists():
+        record = record.with_name(f"phase-{n}-tests-{fsutil.stamp()}-{suffix}.md")
+        suffix += 1
+    earlier = Path(gate["record"])
+    try:
+        when = datetime.fromtimestamp(earlier.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        when = "an earlier run"
+    body = (f"# Phase {n} tests\n\n- Overall: PASS\n\n"
+            f"SKIPPED — identical content tree passed at {when}\n\n- Earlier record: {earlier}\n")
+    fsutil.atomic_write_text(record, body)
+    return record
+
+
 def run_phase(keel_home: Path, kb: Path, folder: Path, n: int, extra_review=False,
               review=critic.run_review) -> dict:
+    try:
+        config = ladder.load(keel_home)
+    except ladder.LadderError as error:
+        raise RunError(str(error)) from error
     state = work.load_state(folder)
     run = state.get("run")
     if not run:
@@ -111,20 +148,35 @@ def run_phase(keel_home: Path, kb: Path, folder: Path, n: int, extra_review=Fals
             data["run"]["phases"][str(n)] = fields
         work.update_state(folder, update)
 
-    save_phase({**phase_states.get(str(n), {}), "base": base})
+    previous_fields = dict(phase_states.get(str(n), {}))
+    no_cache = os.environ.get("KEEL_WF_NO_GATE_CACHE") == "1"
+    if no_cache:
+        previous_fields.pop("gate", None)
+    save_phase({**previous_fields, "base": base})
+    tree_before = _content_tree(repo)
+    cached = previous_fields.get("gate")
     results = []
-    timeout = float(os.environ.get("KEEL_WF_TEST_TIMEOUT", "1800"))
-    for command in phase.tests:
-        try:
-            result = subprocess.run(command, shell=True, cwd=repo, capture_output=True,
-                                    text=True, encoding="utf-8", errors="replace", timeout=timeout)
-            code = result.returncode
-            output = (result.stdout or "") + (result.stderr or "")
-        except subprocess.TimeoutExpired as error:
-            code = 124
-            output = str(error)
-        results.append((command, code, output))
-    tests_record = _tests_record(folder, n, results)
+    gate = None
+    if (cached and cached.get("tree") == tree_before
+            and cached.get("commands") == list(phase.tests)):
+        tests_record = _skipped_record(folder, n, cached)
+        gate = cached
+    else:
+        timeout = float(os.environ.get("KEEL_WF_TEST_TIMEOUT", "1800"))
+        for command in phase.tests:
+            try:
+                result = subprocess.run(command, shell=True, cwd=repo, capture_output=True,
+                                        text=True, encoding="utf-8", errors="replace", timeout=timeout)
+                code = result.returncode
+                output = (result.stdout or "") + (result.stderr or "")
+            except subprocess.TimeoutExpired as error:
+                code = 124
+                output = str(error)
+            results.append((command, code, output))
+        tests_record = _tests_record(folder, n, results)
+        if (not no_cache and all(code == 0 for _, code, _ in results)
+                and _content_tree(repo) == tree_before):
+            gate = {"tree": tree_before, "commands": list(phase.tests), "record": str(tests_record)}
     if any(code != 0 for _, code, _ in results):
         fields = {"status": "tests-failed", "base": base, "tests_record": str(tests_record)}
         save_phase(fields)
@@ -152,16 +204,18 @@ def run_phase(keel_home: Path, kb: Path, folder: Path, n: int, extra_review=Fals
         if result.returncode:
             raise RunError("commit failed: " + result.stderr[-4000:].strip())
         commit = _git(repo, "rev-parse", "HEAD")
-    save_phase({"base": base, "commit": commit})
+    kept = {"gate": gate} if gate else {}
+    save_phase({"base": base, "commit": commit, **kept})
     try:
         verdict, record, _, _ = review("phase", keel_home=keel_home, kb=kb, folder=folder,
                                         repo=repo, phase=n, extra_review=extra_review,
-                                        tests_record=tests_record)
+                                        tests_record=tests_record,
+                                        phase_limit=config.phase_review_limit)
     except (critic.Refused, critic.ReviewError) as error:
         raise RunError(str(error)) from error
     fields = {"status": "done" if verdict == "PASS" else "review-failed",
               "base": base, "commit": commit, "tests_record": str(tests_record),
-              "review_record": str(record) if record else None}
+              "review_record": str(record) if record else None, "verdict": verdict, **kept}
     if verdict == "PASS":
         fsutil.atomic_write_text(folder / "plan.md", plan.tick_phase(_plan(folder)[0], n))
     save_phase(fields)

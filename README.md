@@ -126,8 +126,11 @@ under `<KB>/raw/work/`. To approve an intent, type `approve <slug>`. The intent
 review checks that the KB was searched first; the intent lists the KB pages read.
 
 Each review runs the chosen CLI once more with your own login — the intent review
-up to 3 times, the spec and plan reviews, up to 2 per plan phase, and one per
-LIGHT change. A subscription login uses your plan's usage limits; an API key
+up to 3 times, the spec and plan reviews, each plan phase review (the limit is set in
+`~/.keel/ladder.json`, default 3), and one per LIGHT change. After a failed phase
+review the runner prints the next fix step; Claude Code gets fixer agents
+`keel-hotfix-<step>` and Codex gets an effort setting to run the fix with.
+A subscription login uses your plan's usage limits; an API key
 (including `ANTHROPIC_API_KEY` or `CODEX_API_KEY` in your environment) is billed
 to that API account.
 

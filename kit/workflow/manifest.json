@@ -1,5 +1,5 @@
 {
-  "version": "0.2.1",
+  "version": "0.2.2",
   "items": [
     {"id": "wf:rules", "kind": "rules", "title": {"en": "Workflow rules", "ko": "워크플로우 규칙"}, "path": "{CLI_HOME}/CLAUDE.md or AGENTS.md", "targets": ["claude", "codex"], "stage": "entry"},
     {"id": "wf:cli", "kind": "file", "title": {"en": "Workflow command", "ko": "워크플로우 명령"}, "path": "{KEEL_HOME}/workflow/keel_wf.py", "targets": ["claude", "codex"], "stage": "run"},
@@ -12,6 +12,8 @@
     {"id": "wf:skill:keel-check", "kind": "skill", "title": {"en": "Harness check", "ko": "하네스 점검"}, "path": "{CLI_HOME}/skills/keel-check/SKILL.md", "targets": ["claude", "codex"], "stage": "check"},
     {"id": "wf:templates", "kind": "directory", "title": {"en": "Work templates", "ko": "작업 템플릿"}, "path": "{KEEL_HOME}/workflow/templates/", "targets": ["claude", "codex"], "stage": "intent"},
     {"id": "wf:critic-prompts", "kind": "directory", "title": {"en": "Review prompts", "ko": "검토 프롬프트"}, "path": "{KEEL_HOME}/workflow/critic/", "targets": ["claude", "codex"], "stage": "spec"},
-    {"id": "wf:map", "kind": "file", "title": {"en": "Harness map", "ko": "하네스 지도"}, "path": "{KB_PATH}/keel-harness-map.html", "targets": ["claude", "codex"], "stage": "check", "removal": "kept"}
+    {"id": "wf:map", "kind": "file", "title": {"en": "Harness map", "ko": "하네스 지도"}, "path": "{KB_PATH}/keel-harness-map.html", "targets": ["claude", "codex"], "stage": "check", "removal": "kept"},
+    {"id": "wf:ladder", "kind": "file", "title": {"en": "Fix ladder settings", "ko": "수정 단계 설정"}, "path": "{KEEL_HOME}/ladder.json", "targets": ["claude", "codex"], "stage": "run", "removal": "kept"},
+    {"id": "wf:agents", "kind": "directory", "title": {"en": "Fixer agents", "ko": "수정 에이전트"}, "path": "{CLI_HOME}/agents", "targets": ["claude"], "stage": "run"}
   ]
 }

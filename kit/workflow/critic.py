@@ -112,7 +112,7 @@ def _block(name: str, body: str) -> str:
 def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
                repo: Path | None = None, phase: int | None = None, request: str = "",
                base: str = "", statements: Path | None = None, extra_review: bool = False,
-               tests_record: Path | None = None,
+               tests_record: Path | None = None, phase_limit: int = 3,
                run=subprocess.run) -> tuple[str, Path | None, list[str], str]:
     if stage not in ("intent", "spec", "plan", "phase", "light"):
         raise ValueError(stage)
@@ -128,7 +128,7 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
         raise Refused(f"intent not approved by the user — ask them to type: approve {state.get('slug', folder.name)}")
     if stage == "intent" and state.get("review_fails", {}).get("intent", 0) >= 3 and not extra_review:
         raise Refused("intent review limit reached")
-    if stage == "phase" and state.get("review_fails", {}).get(key, 0) >= 2 and not extra_review:
+    if stage == "phase" and state.get("review_fails", {}).get(key, 0) >= phase_limit and not extra_review:
         raise Refused("phase review limit reached")
 
     inputs = []

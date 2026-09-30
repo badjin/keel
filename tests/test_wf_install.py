@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from kit import install_hooks
-from kit.workflow import docs, fsutil, install, work
+from kit.workflow import docs, fsutil, install, ladder, work
 from kit.workflow.rules_block import BlockError
 
 
@@ -56,6 +56,55 @@ class WorkflowInstallTest(unittest.TestCase):
         self.assertFalse((self.home / ".keel" / "workflow").exists())
         self.assertFalse((self.home / ".keel" / "workflow-hooks").exists())
         self.assertEqual((work / "keep").read_text(encoding="utf-8"), "yes")
+
+    def test_ladder_json_and_agents_rendered(self):
+        install.install(self.home, ROOT, ["claude", "codex"], "codex", sys.executable)
+        self.assertEqual(self.data(self.home / ".keel/ladder.json"), ladder.DEFAULTS)
+        agents = self.home / ".claude" / "agents"
+        for number, step in enumerate(ladder.DEFAULTS["steps"], 1):
+            text = (agents / f"keel-hotfix-{number}.md").read_text(encoding="utf-8")
+            self.assertIn(f"name: keel-hotfix-{number}\n", text)
+            self.assertIn(f"model: {step['claude']['model']}\n", text)
+            self.assertIn(f"effort: {step['claude']['effort']}\n", text)
+            self.assertIn("<!-- keel -->", text)
+        self.assertEqual(len(list(agents.glob("*.md"))), 2)
+        self.assertFalse((self.home / ".codex" / "agents").exists())
+
+    def test_edited_ladder_survives_reinstall_and_resizes_agents(self):
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        path = self.home / ".keel" / "ladder.json"
+        step = {"claude": {"model": "opus", "effort": "high"}, "codex": {"model": None, "effort": "high"}}
+        for count in (3, 1):
+            edited = {"phase_review_limit": 5, "steps": [step] * count}
+            path.write_text(json.dumps(edited), encoding="utf-8")
+            install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+            self.assertEqual(self.data(path), edited)
+            names = sorted(p.name for p in (self.home / ".claude" / "agents").glob("keel-hotfix-*.md"))
+            self.assertEqual(names, [f"keel-hotfix-{n}.md" for n in range(1, count + 1)])
+
+    def test_unmarked_agent_file_is_kept(self):
+        agents = self.home / ".claude" / "agents"
+        agents.mkdir(parents=True)
+        mine = agents / "keel-hotfix-9.md"
+        mine.write_text("mine", encoding="utf-8")
+        first = agents / "keel-hotfix-1.md"
+        first.write_text("mine too", encoding="utf-8")
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        self.assertEqual(mine.read_text(encoding="utf-8"), "mine")
+        self.assertEqual(first.read_text(encoding="utf-8"), "mine too")
+
+    def test_uninstall_removes_marked_agents_keeps_ladder_and_unmarked(self):
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        agents = self.home / ".claude" / "agents"
+        mine = agents / "my-agent.md"
+        mine.write_text("mine", encoding="utf-8")
+        install.uninstall(self.home)
+        self.assertEqual([p.name for p in agents.iterdir()], ["my-agent.md"])
+        self.assertTrue((self.home / ".keel" / "ladder.json").is_file())
+        mine.unlink()
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        install.uninstall(self.home)
+        self.assertFalse(agents.exists())
 
     def test_created_rules_removed(self):
         install.install(self.home, ROOT, ["claude", "codex"], "codex", sys.executable)

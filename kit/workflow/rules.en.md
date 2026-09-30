@@ -28,7 +28,8 @@ Use the installed skills for the stage you are performing.
    Run `{{KEEL_WF}} critic plan --work <work-id>` and resolve its feedback.
 5. Use keel-run. Run `{{KEEL_WF}} run start --work <work-id> --repo <repo>`.
    Implement each phase, then run `{{KEEL_WF}} run phase N --work <work-id>`.
-   Resolve a failed phase review before moving on; stop at its 2-round limit.
+   On a failed phase review do not fix it yourself: read the printed `next fix` line and follow keel-run.
+   The phase review limit is set in `~/.keel/ladder.json` (default 3).
 6. Run every approved acceptance scenario in its stated environment.
    Record each result and evidence in a JSON file.
    Run `{{KEEL_WF}} verify --work <work-id> --results <results.json>`.
@@ -42,7 +43,7 @@ Use the installed skills for the stage you are performing.
 - Never edit `## Status` by hand; the Keel commands and approval hook own that field.
 - Never push, merge, or deploy as part of a workflow stage.
 - Never create or switch branches yourself. `run start` creates or keeps the work branch; spec and plan hold no branch steps.
-- If intent review reaches 3 rounds or phase review reaches 2 rounds, stop and ask the user.
+- If intent review reaches 3 rounds, or the runner prints `no further fix step`, stop and ask the user.
 - Do not continue from a failed or stale review. Correct the document or implementation and rerun it.
 - A changed acceptance scenario requires a new spec review before plan or verification.
 - Keep intent, spec, plan, records, and scenario results under `{{KB_PATH}}/raw/work/`.
