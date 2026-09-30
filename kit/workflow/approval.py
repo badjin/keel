@@ -19,7 +19,7 @@ def match_prompt(prompt: str, words: list[str]) -> str | None:
     return match.group(1) if match else None
 
 
-def approve(kb: Path, keel_home: Path, name: str, session: str, prompt: str) -> tuple[str, str]:
+def approve(kb: Path, keel_home: Path, name: str, session: str, prompt: str, *, via: str = "typed message") -> tuple[str, str]:
     root = work.work_root(kb)
     candidates = []
     if root.is_dir():
@@ -57,7 +57,7 @@ def approve(kb: Path, keel_home: Path, name: str, session: str, prompt: str) -> 
     }
     fsutil.append_line(ledger_path(keel_home), json.dumps(record, ensure_ascii=False))
     updated = docs.set_status(original, "approved")
-    updated = docs.add_changelog(updated, f"{at[:10]} approved by typed message (hash {digest[:12]})")
+    updated = docs.add_changelog(updated, f"{at[:10]} approved by {via} (hash {digest[:12]})")
     fsutil.atomic_write_text(intent_path, updated)
     return "approved", folder.name
 

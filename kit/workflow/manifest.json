@@ -1,5 +1,5 @@
 {
-  "version": "0.2.2",
+  "version": "0.2.3",
   "items": [
     {"id": "wf:rules", "kind": "rules", "title": {"en": "Workflow rules", "ko": "워크플로우 규칙"}, "path": "{CLI_HOME}/CLAUDE.md or AGENTS.md", "targets": ["claude", "codex"], "stage": "entry"},
     {"id": "wf:cli", "kind": "file", "title": {"en": "Workflow command", "ko": "워크플로우 명령"}, "path": "{KEEL_HOME}/workflow/keel_wf.py", "targets": ["claude", "codex"], "stage": "run"},

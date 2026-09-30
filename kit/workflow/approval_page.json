@@ -1,0 +1,32 @@
+{
+  "en": {
+    "title": "Intent approval",
+    "intent_heading": "Intent awaiting approval",
+    "approve": "Approve",
+    "request_changes": "Request changes",
+    "note_label": "What should change? (optional)",
+    "send_changes": "Send changes",
+    "approved_msg": "Intent approved.",
+    "changes_msg": "Changes requested.",
+    "stale_msg": "The intent changed after this page loaded. Reload the page to review the latest version.",
+    "none_msg": "Nothing awaits approval.",
+    "error_msg": "Could not send your decision. Please try again.",
+    "closed_msg": "This page has closed — the intent may already be decided. Nothing was changed.",
+    "toggle": "English"
+  },
+  "ko": {
+    "title": "의도 승인",
+    "intent_heading": "승인을 기다리는 의도 문서",
+    "approve": "승인",
+    "request_changes": "수정 요청",
+    "note_label": "수정할 내용을 적어 주세요 (선택)",
+    "send_changes": "수정 요청 보내기",
+    "approved_msg": "의도 문서를 승인했습니다.",
+    "changes_msg": "수정을 요청했습니다.",
+    "stale_msg": "페이지를 연 뒤 의도 문서가 변경되었습니다. 새로고침하여 최신 내용을 확인해 주세요.",
+    "none_msg": "승인을 기다리는 의도 문서가 없습니다.",
+    "error_msg": "결정을 보내지 못했습니다. 다시 시도해 주세요.",
+    "closed_msg": "이 페이지는 닫혔습니다 — 의도 문서가 이미 결정되었을 수 있습니다. 변경된 내용은 없습니다.",
+    "toggle": "한국어"
+  }
+}

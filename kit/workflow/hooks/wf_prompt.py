@@ -63,7 +63,7 @@ def run() -> int:
             problem_text = docs.sections(intent).get("Problem", "").strip()
             problem = re.split(r"(?<=[.!?])\s", problem_text, maxsplit=1)[0]
             next_step = {"draft": "finish the intent and run critic intent",
-                         "awaiting-approval": f"wait for the user to type approve {work.load_state(owned).get('slug', owned.name)}",
+                         "awaiting-approval": f"wait for the user to approve on the approval page or type approve {work.load_state(owned).get('slug', owned.name)}",
                          "approved": "spec / plan / run per keel-run"}.get(status, "")
             lines.append(docs.text("work_reminder", lang, id=owned.name, problem=problem,
                                    status=status, next=next_step, path=str(owned)))

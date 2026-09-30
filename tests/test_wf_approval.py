@@ -57,6 +57,21 @@ class ApprovalTest(unittest.TestCase):
         self.assertEqual(docs.get_status((folder / "intent.md").read_text(encoding="utf-8")), "approved")
         self.assertTrue(approval.is_approved(self.keel_home, folder))
 
+    def test_approve_records_current_hash_with_page_via_and_default(self):
+        page_folder = self.make_work("page-approval")
+        self.assertEqual(approval.approve(self.kb, self.keel_home, "page-approval", "s1", "approve page-approval",
+                                          via="the approval page"), ("approved", page_folder.name))
+        page_intent = (page_folder / "intent.md").read_text(encoding="utf-8")
+        self.assertEqual(self.ledger_lines()[0]["hash"], docs.intent_hash(page_intent))
+        self.assertIn("approved by the approval page", docs.sections(page_intent)["Changelog"].splitlines()[-1])
+
+        typed_folder = self.make_work("typed-approval")
+        self.assertEqual(approval.approve(self.kb, self.keel_home, "typed-approval", "s1", "approve typed-approval"),
+                         ("approved", typed_folder.name))
+        typed_intent = (typed_folder / "intent.md").read_text(encoding="utf-8")
+        self.assertEqual(self.ledger_lines()[1]["hash"], docs.intent_hash(typed_intent))
+        self.assertIn("approved by typed message", docs.sections(typed_intent)["Changelog"].splitlines()[-1])
+
     def test_ambiguous_slug_requires_full_id(self):
         first = self.make_work("x", "2026-09-27")
         self.make_work("x", "2026-09-28")

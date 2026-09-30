@@ -13,5 +13,12 @@
   "ambiguous_slug": {"en": "Keel: more than one work item named {name} awaits approval — type approve <YYYY-MM-DD>-{name}."},
   "stale_intent": {"en": "Keel: {id} changed after it was submitted — run critic intent and intent submit again, then approve."},
   "submit_instruction": {"en": "Read {path}. To approve, type exactly: approve {slug}"},
+  "page_instruction": {"en": "Approval page: {url} — the user can approve or request changes there; typing approve {slug} also works. If your tool can wait on a background command, run intent wait as the rules say, then end the turn."},
+  "page_fallback": {"en": "The approval page could not start here. To use it, run in your own terminal: {keel_wf} review --work {work}"},
+  "wait_approved": {"en": "approved {id} (hash {hash12}). Continue to the spec with keel-spec."},
+  "wait_changes": {"en": "changes requested: {note}. Edit the intent, run critic intent, then intent submit again."},
+  "wait_changes_bare": {"en": "changes requested. Edit the intent, run critic intent, then intent submit again."},
+  "wait_timeout": {"en": "still awaiting approval — end the turn; the user can still approve on the page, type approve {slug}, or run the review command. Do not act on approval yourself."},
+  "review_nothing": {"en": "Nothing awaits approval for {work}."},
   "check_footer": {"en": "Nothing was changed. To fix, reinstall from Keel's Workflow step (python3 app/server.py)."}
 }

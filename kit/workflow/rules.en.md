@@ -19,9 +19,8 @@ Use the installed skills for the stage you are performing.
    Run `{{KEEL_WF}} new <slug>` and fill the generated intent.md.
    Run `{{KEEL_WF}} critic intent --work <work-id>`; fix FAIL and rerun, at most 3 rounds.
    Run `{{KEEL_WF}} intent submit --work <work-id>`.
-   Relay its instruction and end the turn.
-2. Wait for the user to type `approve <slug>`.
-   The prompt hook records approval. Never type that message for the user.
+   Relay its instruction. If your tool can run a command in the background and resume when it ends (Claude Code: Bash with run_in_background), start `{{KEEL_WF}} intent wait --work <work-id>` that way with a background timeout longer than its --timeout-seconds (default 1800), then end the turn; when it ends, follow its printed instruction. Otherwise end the turn and wait for the user's next message.
+2. Wait for the user to approve: on the approval page that intent submit printed, or by typing `approve <slug>`. The hook records a typed approval and the page records a click. Never type that message, never call the approval page's address, and never edit the intent's status yourself. If no page could start, the user can run `{{KEEL_WF}} review --work <work-id>` in their own terminal.
 3. Use keel-spec. Write spec.md from the approved intent, including acceptance scenarios.
    Run `{{KEEL_WF}} critic spec --work <work-id>` and resolve its feedback.
 4. Use keel-plan. Write plan.md with phases, scenario coverage, and test commands.
@@ -40,6 +39,7 @@ Use the installed skills for the stage you are performing.
 ## Hard rules
 
 - Never type, impersonate, or fake the user's approval. The user must supply it.
+- Never call the approval page's address (its /decide route) yourself; the page is for the user, and it gives no stronger protection against the agent than typed approval does.
 - Never edit `## Status` by hand; the Keel commands and approval hook own that field.
 - Never push, merge, or deploy as part of a workflow stage.
 - Never create or switch branches yourself. `run start` creates or keeps the work branch; spec and plan hold no branch steps.

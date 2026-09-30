@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
+import os
+import signal
 import subprocess
+import sys
+import time
+import urllib.request
 from datetime import date
 from pathlib import Path
 
-from . import check, close, critic, docs, fsutil, ladder, runner, work
+from . import approval_page, check, close, critic, docs, fsutil, ladder, runner, work
+
+PAGE_START_SECONDS = 5
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -20,6 +28,15 @@ def _parser() -> argparse.ArgumentParser:
     intent_commands = intent.add_subparsers(dest="intent_command", required=True)
     submit = intent_commands.add_parser("submit")
     submit.add_argument("--work", required=True)
+    wait = intent_commands.add_parser("wait")
+    wait.add_argument("--work", required=True)
+    wait.add_argument("--timeout-seconds", type=int, default=1800)
+
+    page = commands.add_parser("review")
+    page.add_argument("--work", required=True)
+    page.add_argument("--no-open", action="store_true")
+    page.add_argument("--ready-file")
+    page.add_argument("--keel-home", help=argparse.SUPPRESS)
 
     review = commands.add_parser("critic")
     review.add_argument("stage", choices=("intent", "spec", "plan", "phase", "light"))
@@ -59,6 +76,42 @@ def _origin() -> str:
     return str(Path(result.stdout.strip()).resolve()) if result.returncode == 0 else str(cwd)
 
 
+def page_ready_path(keel_home: Path, slug: str) -> Path:
+    return keel_home / "state" / "workflow" / "pages" / f"{slug}.json"
+
+
+def _start_page(keel_home: Path, folder: Path, work_arg: str) -> str | None:
+    slug = work.load_state(folder)["slug"]
+    ready_path = page_ready_path(keel_home, slug)
+    if ready_path.exists():
+        try:
+            previous = fsutil.read_json(ready_path, {})
+            with urllib.request.urlopen(previous["url"], timeout=1) as reply:
+                if reply.headers.get("X-Keel-Approval-Page") == slug:
+                    os.kill(previous["pid"], signal.SIGTERM)
+        except (OSError, ValueError, TypeError, LookupError, http.client.HTTPException):
+            pass
+        finally:
+            ready_path.unlink(missing_ok=True)
+
+    command = [sys.executable, str(Path(__file__).resolve().parent / "keel_wf.py"),
+               "review", "--work", work_arg, "--keel-home", str(keel_home),
+               "--ready-file", str(ready_path)]
+    try:
+        subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        return None
+    deadline = time.monotonic() + PAGE_START_SECONDS
+    while True:
+        if ready_path.exists():
+            return fsutil.read_json(ready_path, {})["url"]
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        time.sleep(min(0.1, remaining))
+
+
 def _print_next_step(keel_home: Path, folder: Path, n: int, verdict) -> None:
     if verdict == "ERROR":
         print(f"review errored — rerun run phase {n}; no fix needed")
@@ -80,7 +133,7 @@ def _print_next_step(keel_home: Path, folder: Path, n: int, verdict) -> None:
 
 def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) -> int:
     args = _parser().parse_args(argv)
-    keel_home = Path(keel_home).resolve()
+    keel_home = Path(args.keel_home if args.command == "review" and args.keel_home else keel_home).resolve()
     if args.command == "check":
         rows, exit_code = check.run_check(keel_home)
         columns = ("id", "title", "where", "status")
@@ -98,6 +151,35 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
     lang = config.get("workflow", {}).get("language", "en")
 
     try:
+        if args.command == "review":
+            folder = work.resolve(kb, args.work)
+            original = (folder / "intent.md").read_text(encoding="utf-8")
+            if docs.get_status(original) != "awaiting-approval":
+                print(docs.text("review_nothing", lang, work=args.work))
+                return 4
+            slug = work.load_state(folder)["slug"]
+            ready_file = Path(args.ready_file) if args.ready_file else page_ready_path(keel_home, slug)
+
+            def announce(url: str) -> None:
+                print(url, flush=True)
+                fsutil.atomic_write_json(ready_file, {"url": url, "pid": os.getpid()})
+
+            try:
+                try:
+                    outcome = approval_page.serve(
+                        kb, keel_home, folder, announce=announce, open_browser=not args.no_open,
+                    )
+                finally:
+                    ready_file.unlink(missing_ok=True)
+            except KeyboardInterrupt:
+                print("interrupted")
+                return 2
+            except OSError as error:
+                print(error)
+                return 3
+            print(outcome)
+            return {"approved": 0, "changes": 1, "timeout": 2}[outcome]
+
         if args.command == "new":
             folder = work.new_work(kb, keel_home, args.slug, lang, _origin(), date.today().isoformat())
             print(folder.resolve())
@@ -107,6 +189,31 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
         if args.command == "intent":
             folder = work.resolve(kb, args.work)
             path = folder / "intent.md"
+            if args.intent_command == "wait":
+                deadline = time.monotonic() + args.timeout_seconds
+                while True:
+                    current = path.read_text(encoding="utf-8")
+                    status = docs.get_status(current)
+                    if status == "approved":
+                        print(docs.text("wait_approved", lang, id=folder.name,
+                                        hash12=docs.intent_hash(current)[:12]))
+                        return 0
+                    if status == "draft":
+                        note = work.load_state(folder).get("changes_requested", {}).get("note", "")
+                        note = note.strip().rstrip(".")
+                        if note:
+                            print(docs.text("wait_changes", lang, note=note))
+                        else:
+                            print(docs.text("wait_changes_bare", lang))
+                        return 1
+                    if status != "awaiting-approval":
+                        print(status)
+                        return 1
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        print(docs.text("wait_timeout", lang, slug=work.load_state(folder)["slug"]))
+                        return 2
+                    time.sleep(min(2, remaining))
             original = path.read_text(encoding="utf-8")
             problems = docs.check_intent(original, docs.text("none_tokens", lang))
             if problems:
@@ -121,8 +228,18 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
             updated = docs.set_status(original, "awaiting-approval")
             updated = docs.add_changelog(updated, f"{fsutil.now_iso()[:10]} submitted for approval")
             fsutil.atomic_write_text(path, updated)
+            try:
+                url = _start_page(keel_home, folder, args.work)
+            except (OSError, LookupError, ValueError, TypeError):
+                url = None
+            slug = work.load_state(folder)["slug"]
             print(docs.text("submit_instruction", lang, path=str(path.resolve()),
-                            slug=work.load_state(folder)["slug"]))
+                            slug=slug))
+            if url:
+                print(docs.text("page_instruction", lang, url=url, slug=slug))
+            else:
+                keel_wf = config.get("workflow", {}).get("keel_wf") or f"python3 {keel_home / 'workflow' / 'keel_wf.py'}"
+                print(docs.text("page_fallback", lang, keel_wf=keel_wf, work=args.work))
             return 0
 
         if args.command == "run":

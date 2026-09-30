@@ -119,11 +119,15 @@ its SessionStart hook output is not delivered to the agent.
 
 ## Workflow (optional)
 
-The Workflow step adds grading, an intent interview and review, typed approval,
+The Workflow step adds grading, an intent interview and review, approval,
 a spec with acceptance scenarios, a plan, implementation with reviews, final
 verification, an audit, and filing the work in the KB. Its work documents live
-under `<KB>/raw/work/`. To approve an intent, type `approve <slug>`. The intent
-review checks that the KB was searched first; the intent lists the KB pages read.
+under `<KB>/raw/work/`. In Claude Code, an approval page opens after `intent submit`;
+click Approve to approve the intent. In the Codex default sandbox, the page cannot
+start: type `approve <slug>` or run `keel_wf.py review --work <id>` in your own
+terminal. The agent starts the page, so it gives no stronger protection than typed
+approval. The intent review checks that the KB was searched first; the intent lists
+the KB pages read.
 
 Each review runs the chosen CLI once more with your own login — the intent review
 up to 3 times, the spec and plan reviews, each plan phase review (the limit is set in
