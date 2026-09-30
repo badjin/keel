@@ -18,6 +18,62 @@ screen.
 - **CLI** means a program used from the terminal (the black screen where you
   type commands). Here it refers to three: `claude`, `codex`, and `gh`.
 
+## Screenshots
+
+### Install screen
+
+**Hooks** — Choose which hooks to install for Claude Code, Codex and Grok.
+
+<img src="screenshots/en/01-hooks.png" alt="Hooks" width="760">
+
+**Knowledge Base** — Pick where the knowledge base folder is created.
+
+<img src="screenshots/en/02-knowledge-base.png" alt="Knowledge Base" width="760">
+
+**Knowledge Base — from folders** — Or build it from git folders on your computer.
+
+<img src="screenshots/en/03-knowledge-base-folders.png" alt="Knowledge Base — from folders" width="760">
+
+**GitHub (optional)** — Connect GitHub with your gh login.
+
+<img src="screenshots/en/04-github.png" alt="GitHub (optional)" width="760">
+
+**GitHub (optional) — token** — Or enter a personal access token directly.
+
+<img src="screenshots/en/05-github-token.png" alt="GitHub (optional) — token" width="760">
+
+**Workflow (optional)** — The pipeline map and what will be installed.
+
+<img src="screenshots/en/06-workflow.png" alt="Workflow (optional)" width="760">
+
+**Finish** — Complete the install, open the harness map, and see the undo order.
+
+<img src="screenshots/en/07-finish.png" alt="Finish" width="760">
+
+### Workflow approval page
+
+**Approval page** — After you submit an intent, the approval page opens in your browser. The buttons stay at the bottom.
+
+<img src="screenshots/en/08-approval-page.png" alt="Approval page" width="760">
+
+**Request changes** — Ask for a revision with a note instead of approving.
+
+<img src="screenshots/en/09-approval-request-changes.png" alt="Request changes" width="760">
+
+**Approved** — Clicking Approve records the approval and the agent continues.
+
+<img src="screenshots/en/10-approved.png" alt="Approved" width="760">
+
+### Harness map
+
+**Harness map — Approval** — The Approval stage of the pipeline map.
+
+<img src="screenshots/en/11-map-approval.png" alt="Harness map — Approval" width="760">
+
+**Harness map — Run** — The Run stage, with the fix step printed after a failed review.
+
+<img src="screenshots/en/12-map-run.png" alt="Harness map — Run" width="760">
+
 ## Get Keel
 
 Pick one of these three. All of them end with the same install page in your browser.
