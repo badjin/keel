@@ -1,6 +1,6 @@
 # Keel
 
-Knowledge base and hooks for AI coding agents.
+Keel starter kit — a knowledge base and hooks starter for AI coding agents (Claude Code, Codex, Grok).
 
 [한국어](README.ko.md)
 
