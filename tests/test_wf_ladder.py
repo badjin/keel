@@ -28,8 +28,29 @@ class LadderTest(unittest.TestCase):
         config = ladder.load(self.home)
         self.assertEqual(config.phase_review_limit, 3)
         self.assertEqual(len(config.steps), 2)
-        self.assertEqual(config.steps[0].claude, {"model": "sonnet", "effort": "xhigh"})
+        self.assertEqual(config.steps[0].claude, {"model": "opus", "effort": "low"})
+        self.assertEqual(config.steps[1].claude, {"model": "opus", "effort": "low"})
         self.assertEqual(config.steps[1].codex, {"model": None, "effort": "xhigh"})
+        self.assertEqual(config.build, {"model": "sonnet", "effort": "medium"})
+        self.assertEqual(config.code_review_level, "low")
+
+    def test_file_without_build_or_level_gets_defaults(self):
+        self.write({"phase_review_limit": 2, "steps": [
+            {"claude": {"model": "opus", "effort": "high"}, "codex": {"model": None, "effort": "high"}}]})
+        config = ladder.load(self.home)
+        self.assertEqual(config.build, {"model": "sonnet", "effort": "medium"})
+        self.assertEqual(config.code_review_level, "low")
+
+    def test_bad_level_and_build_are_refused(self):
+        for level in ("max", "ultra"):
+            bad = copy.deepcopy(ladder.DEFAULTS)
+            bad["code_review_level"] = level
+            self.write(bad)
+            self.assert_refused()
+        bad = copy.deepcopy(ladder.DEFAULTS)
+        bad["build"] = {"claude": {"effort": "medium"}}
+        self.write(bad)
+        self.assert_refused()
 
     def test_invalid_files_are_refused(self):
         self.write("{not json")

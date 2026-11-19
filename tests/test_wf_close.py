@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from kit.workflow import close, docs, fsutil, work
+from kit.workflow import close, critic, docs, fsutil, work
 
 
 class CloseTest(unittest.TestCase):
@@ -116,6 +118,36 @@ class CloseTest(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any("phase 1" in item and "review" in item for item in problems), problems)
         self.assertEqual(docs.get_status((self.folder / "intent.md").read_text(encoding="utf-8")), "approved")
+
+    def _session_phases(self, record_phases):
+        self.verify()
+        findings = self.folder / "findings.md"
+        findings.write_text("No findings.\n", encoding="utf-8")
+        (self.folder / "spec.md").write_text(self.spec, encoding="utf-8")
+        first = self.state["run"]["phases"]["1"]["commit"]
+        second = self.state["run"]["phases"]["2"]["commit"]
+        self.state = work.load_state(self.folder)
+        for n in (1, 2):
+            current = self.state["run"]["phases"][str(n)]
+            current.update(status="awaiting-review", base=first)
+            current.pop("review_record")
+        self.save_state()
+        for n, commit in ((1, first), (2, second)):
+            if n in record_phases:
+                self.git("checkout", "-q", commit)
+                with patch.dict(os.environ, {"CLAUDECODE": "1"}):
+                    critic.record_session_review("phase", keel_home=self.home, folder=self.folder,
+                                                 repo=self.repo, phase=n, verdict="PASS", findings=findings)
+        return close.audit(self.home, self.folder)
+
+    def test_audit_passes_when_every_phase_is_session_recorded(self):
+        passed, problems, _ = self._session_phases((1, 2))
+        self.assertTrue(passed, problems)
+
+    def test_audit_fails_for_phase_left_awaiting_review(self):
+        passed, problems, _ = self._session_phases((1,))
+        self.assertFalse(passed)
+        self.assertIn("phase 2 status is not done or no-change", problems)
 
     def test_audit_no_change_phase_needs_no_review(self):
         self.verify()

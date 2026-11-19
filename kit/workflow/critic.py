@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -9,6 +10,7 @@ import unicodedata
 from pathlib import Path
 
 from . import approval, docs, fsutil, transcripts, work
+from . import plan as plan_module
 from .plan import outward_steps
 
 
@@ -60,6 +62,53 @@ def parse_answer(answer: str, stage: str) -> tuple[str, list[str]]:
     else:
         verdict = verdicts[-1]
     return verdict, checks
+
+
+def _record_path(folder: Path, key: str) -> Path:
+    record = folder / "records" / f"critic-{key}-{fsutil.stamp()}.md"
+    if record.exists():
+        stem = record.stem
+        suffix = 2
+        while record.exists():
+            record = record.with_name(f"{stem}-{suffix}.md")
+            suffix += 1
+    return record
+
+
+def _record_head(key: str, cli: str, verdict: str, at: str, hashes: dict) -> str:
+    reviewed = ", ".join(f"{name} {digest if name == 'phase' else 'sha256:' + digest}"
+                         for name, digest in hashes.items())
+    return (f"# Keel review record\n- Stage: {key}\n- CLI: {cli}\n"
+            f"- Verdict: {verdict}\n- Recorded at: {at}\n- Reviewed: {reviewed}\n\n"
+            "## Checks\n")
+
+
+def _save_review(data: dict, key: str, verdict: str, hashes: dict, record: Path, at: str,
+                 extra: dict | None = None) -> None:
+    entry = {"verdict": verdict, "hashes": hashes, "record": str(record), "at": at}
+    if extra is not None:
+        entry.update(extra)
+    data.setdefault("reviews", {})[key] = entry
+    if verdict == "FAIL":
+        fails = data.setdefault("review_fails", {})
+        fails[key] = fails.get(key, 0) + 1
+
+
+def code_review_mode() -> bool:
+    return os.environ.get("CLAUDECODE") == "1"
+
+
+def code_review_instruction(level: str, base: str, head: str, repo: Path, *, phase: int | None = None,
+                            work_id: str = "", request: str = "") -> str:
+    where = f"(the git repository is at {Path(repo).resolve()} — run git with -C on that path"
+    if head:
+        return (f"/code-review {level} {base}..{head}  {where})\n"
+                f"then record: keel_wf.py critic phase {phase} --work {shlex.quote(work_id)}"
+                " --verdict PASS|FAIL --findings <findings file>")
+    return (f"/code-review {level} {base}  {where}; review the uncommitted working-tree changes against {base},"
+            " including untracked files listed by git status --porcelain)\n"
+            f"then record: keel_wf.py critic light --repo {shlex.quote(str(Path(repo).resolve()))} --request {shlex.quote(request)}"
+            " --verdict PASS|FAIL --findings <findings file>")
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -270,18 +319,8 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
         fsutil.append_line(keel_home / "state" / "workflow" / "light.log",
                            f"{at} {cli or 'none'} {verdict} {repo} {log_request}")
         return verdict, None, checks, answer
-    record = folder / "records" / f"critic-{key}-{fsutil.stamp()}.md"
-    if record.exists():
-        stem = record.stem
-        suffix = 2
-        while record.exists():
-            record = record.with_name(f"{stem}-{suffix}.md")
-            suffix += 1
-    reviewed = ", ".join(f"{name} {digest if name == 'phase' else 'sha256:' + digest}"
-                         for name, digest in hashes.items())
-    body = (f"# Keel review record\n- Stage: {key}\n- CLI: {cli or 'none'}\n"
-            f"- Verdict: {verdict}\n- Recorded at: {at}\n- Reviewed: {reviewed}\n\n"
-            "## Checks\n" + "\n".join(checks) + "\n")
+    record = _record_path(folder, key)
+    body = _record_head(key, cli or "none", verdict, at, hashes) + "\n".join(checks) + "\n"
     scenarios = docs.spec_scenarios(spec) if stage == "spec" and verdict == "PASS" else None
     if scenarios is not None:
         body += "\n## Approved scenarios\n"
@@ -293,16 +332,7 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
         body += "\n## Answer\n" + answer.rstrip() + "\n"
     fsutil.atomic_write_text(record, body)
 
-    def save(data: dict) -> None:
-        entry = {"verdict": verdict, "hashes": hashes, "record": str(record), "at": at}
-        if scenarios is not None:
-            entry.update(scenarios)
-        data.setdefault("reviews", {})[key] = entry
-        if verdict == "FAIL":
-            fails = data.setdefault("review_fails", {})
-            fails[key] = fails.get(key, 0) + 1
-
-    work.update_state(folder, save)
+    work.update_state(folder, lambda data: _save_review(data, key, verdict, hashes, record, at, scenarios))
     if stage == "spec" and verdict == "PASS":
         current_spec = (folder / "spec.md").read_text(encoding="utf-8")
         if docs.spec_hash(current_spec) != hashes["spec"]:
@@ -317,3 +347,59 @@ def run_review(stage: str, *, keel_home: Path, kb: Path, folder: Path | None,
                 updated = first + "\n" + pointer + "\n" + rest
         fsutil.atomic_write_text(folder / "spec.md", updated)
     return verdict, record, checks, answer
+
+
+def record_session_review(stage: str, *, keel_home: Path, folder: Path | None, repo: Path,
+                          phase: int | None = None, verdict: str, findings: Path,
+                          request: str = "", extra_review: bool = False,
+                          phase_limit: int = 3) -> tuple[str, Path | None]:
+    if stage not in ("phase", "light"):
+        raise ValueError(stage)
+    if not code_review_mode():
+        raise Refused("session-recorded reviews need Claude Code (CLAUDECODE=1); this session uses Keel's reviewer")
+    if verdict not in ("PASS", "FAIL"):
+        raise Refused("verdict must be PASS or FAIL")
+    try:
+        text = findings.read_text(encoding="utf-8").strip()
+    except OSError:
+        text = ""
+    if not text:
+        raise Refused("findings file is missing or empty")
+    at = fsutil.now_iso()
+    if stage == "light":
+        log_request = request.replace("\r", " ").replace("\n", " ")
+        fsutil.append_line(keel_home / "state" / "workflow" / "light.log",
+                           f"{at} /code-review {verdict} {repo} {log_request}")
+        return verdict, None
+    if folder is None or phase is None or phase < 1:
+        raise ValueError("folder and positive phase required")
+    state = work.load_state(folder)
+    key = f"phase-{phase}"
+    if state.get("review_fails", {}).get(key, 0) >= phase_limit and not extra_review:
+        raise Refused("phase review limit reached")
+    current = state.get("run", {}).get("phases", {}).get(str(phase), {})
+    if current.get("status") != "awaiting-review":
+        raise Refused(f"phase {phase} is not awaiting review; run run phase {phase}")
+    if current.get("commit") != _git(repo, "rev-parse", "HEAD").strip():
+        raise Refused(f"HEAD moved since run phase {phase}; rerun run phase {phase}")
+    base = current.get("base")
+    if not base:
+        raise Refused("phase base not recorded")
+    spec = (folder / "spec.md").read_text(encoding="utf-8")
+    hashes = {"spec": docs.spec_hash(spec), "phase": f"{base}..{current['commit']}"}
+    record = _record_path(folder, key)
+    fsutil.atomic_write_text(record, _record_head(key, "/code-review (session-judged)", verdict, at, hashes)
+                             + "\n## Answer\n" + text + "\n")
+
+    def save(data: dict) -> None:
+        _save_review(data, key, verdict, hashes, record, at)
+        kept = {name: current[name] for name in ("base", "commit", "tests_record", "gate") if name in current}
+        data["run"]["phases"][str(phase)] = {
+            **kept, "status": "done" if verdict == "PASS" else "review-failed",
+            "review_record": str(record), "verdict": verdict}
+
+    work.update_state(folder, save)
+    if verdict == "PASS":
+        fsutil.atomic_write_text(folder / "plan.md", plan_module.tick_phase(
+            (folder / "plan.md").read_text(encoding="utf-8"), phase))
+    return verdict, record

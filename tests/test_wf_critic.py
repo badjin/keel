@@ -561,5 +561,120 @@ class CriticTest(unittest.TestCase):
         self.assertIn("Latin-1: caf", prompt)
 
 
+class SessionReviewTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.home = self.root / "home"
+        self.folder = work.new_work(self.root / "kb", SOURCE_KIT, "example", "en", "cli", "2026-09-28")
+        self.repo = self.root / "repo"
+        self.repo.mkdir()
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.name", "Test")
+        self.git("config", "user.email", "test@example.com")
+        (self.repo / "a.txt").write_text("a\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "base")
+        self.base = self.git("rev-parse", "HEAD")
+        (self.repo / "a.txt").write_text("b\n", encoding="utf-8")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "phase 1")
+        self.commit = self.git("rev-parse", "HEAD")
+        self.spec = "# Spec\n## Design\nDo it.\n"
+        (self.folder / "spec.md").write_text(self.spec, encoding="utf-8")
+        (self.folder / "plan.md").write_text("---\nkeel_plan: 1\n---\n## Phase 1: Change\n- [ ] Change it\n", encoding="utf-8")
+        state = work.load_state(self.folder)
+        state["run"] = {"repo": str(self.repo), "phases": {"1": {
+            "status": "awaiting-review", "base": self.base, "commit": self.commit,
+            "tests_record": "tests.md", "gate": {"tree": "t"}}}}
+        fsutil.atomic_write_json(self.folder / "state.json", state)
+        self.findings = self.root / "findings.md"
+        self.findings.write_text("No findings.\n", encoding="utf-8")
+        patcher = patch.dict(os.environ, {"CLAUDECODE": "1"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.repo), *args], capture_output=True, text=True,
+                              check=True).stdout.strip()
+
+    def record(self, verdict="PASS", **kwargs):
+        kwargs.setdefault("findings", self.findings)
+        return critic.record_session_review("phase", keel_home=self.home, folder=self.folder,
+                                            repo=self.repo, phase=1, verdict=verdict, **kwargs)
+
+    def test_pass_records_review_and_completes_phase(self):
+        verdict, record = self.record()
+        self.assertEqual(verdict, "PASS")
+        state = work.load_state(self.folder)
+        review = state["reviews"]["phase-1"]
+        self.assertEqual(set(review), {"verdict", "hashes", "record", "at"})
+        self.assertEqual(review["hashes"], {"spec": docs.spec_hash(self.spec),
+                                            "phase": f"{self.base}..{self.commit}"})
+        self.assertEqual(review["record"], str(record))
+        text = record.read_text(encoding="utf-8")
+        self.assertIn("- CLI: /code-review (session-judged)", text)
+        self.assertIn("- Verdict: PASS", text)
+        self.assertIn(f"- Reviewed: spec sha256:{docs.spec_hash(self.spec)}, phase {self.base}..{self.commit}", text)
+        self.assertTrue(text.endswith("## Answer\nNo findings.\n"))
+        phase = state["run"]["phases"]["1"]
+        self.assertEqual({key: phase[key] for key in ("status", "base", "commit", "tests_record", "verdict")},
+                         {"status": "done", "base": self.base, "commit": self.commit,
+                          "tests_record": "tests.md", "verdict": "PASS"})
+        self.assertEqual(phase["gate"], {"tree": "t"})
+        self.assertEqual(phase["review_record"], str(record))
+        self.assertIn("- [x] Change it", (self.folder / "plan.md").read_text(encoding="utf-8"))
+
+    def test_fail_marks_review_failed_and_counts(self):
+        verdict, _ = self.record("FAIL")
+        self.assertEqual(verdict, "FAIL")
+        state = work.load_state(self.folder)
+        self.assertEqual(state["run"]["phases"]["1"]["status"], "review-failed")
+        self.assertEqual(state["review_fails"]["phase-1"], 1)
+        self.assertEqual(state["reviews"]["phase-1"]["verdict"], "FAIL")
+        self.assertIn("- [ ] Change it", (self.folder / "plan.md").read_text(encoding="utf-8"))
+
+    def test_refusals_change_nothing(self):
+        empty = self.root / "empty.md"
+        empty.write_text("  \n", encoding="utf-8")
+        with patch.dict(os.environ, {"CLAUDECODE": ""}):
+            with self.assertRaisesRegex(critic.Refused, "CLAUDECODE"):
+                self.record()
+        with self.assertRaises(critic.Refused):
+            self.record(findings=empty)
+        with self.assertRaises(critic.Refused):
+            self.record(findings=self.root / "missing.md")
+        with self.assertRaises(critic.Refused):
+            self.record("MAYBE")
+        state = work.load_state(self.folder)
+        state["review_fails"] = {"phase-1": 3}
+        fsutil.atomic_write_json(self.folder / "state.json", state)
+        with self.assertRaisesRegex(critic.Refused, "limit"):
+            self.record()
+        self.assertEqual(self.record(extra_review=True)[0], "PASS")
+        state["review_fails"] = {}
+        state["run"]["phases"]["1"]["status"] = "review-failed"
+        fsutil.atomic_write_json(self.folder / "state.json", state)
+        with self.assertRaises(critic.Refused):
+            self.record()
+
+    def test_head_moved_refuses(self):
+        (self.repo / "a.txt").write_text("c\n", encoding="utf-8")
+        self.git("commit", "-qam", "hotfix")
+        with self.assertRaisesRegex(critic.Refused, "HEAD moved"):
+            self.record()
+        self.assertEqual(work.load_state(self.folder)["run"]["phases"]["1"]["status"], "awaiting-review")
+
+    def test_light_appends_log_line(self):
+        verdict, record = critic.record_session_review(
+            "light", keel_home=self.home, folder=None, repo=self.repo, verdict="PASS",
+            findings=self.findings, request="Fix it\nnow")
+        self.assertEqual((verdict, record), ("PASS", None))
+        lines = (self.home / "state" / "workflow" / "light.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertTrue(lines[0].endswith(f" /code-review PASS {self.repo} Fix it now"))
+
+
 if __name__ == "__main__":
     unittest.main()

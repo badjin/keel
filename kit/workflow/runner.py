@@ -206,6 +206,12 @@ def run_phase(keel_home: Path, kb: Path, folder: Path, n: int, extra_review=Fals
         commit = _git(repo, "rev-parse", "HEAD")
     kept = {"gate": gate} if gate else {}
     save_phase({"base": base, "commit": commit, **kept})
+    if critic.code_review_mode():
+        fields = {"status": "awaiting-review", "base": base, "commit": commit,
+                  "tests_record": str(tests_record), **kept}
+        save_phase(fields)
+        return {**fields, "instruction": critic.code_review_instruction(
+            config.code_review_level, base, commit, repo, phase=n, work_id=folder.name)}
     try:
         verdict, record, _, _ = review("phase", keel_home=keel_home, kb=kb, folder=folder,
                                         repo=repo, phase=n, extra_review=extra_review,

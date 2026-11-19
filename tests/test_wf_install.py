@@ -67,8 +67,45 @@ class WorkflowInstallTest(unittest.TestCase):
             self.assertIn(f"model: {step['claude']['model']}\n", text)
             self.assertIn(f"effort: {step['claude']['effort']}\n", text)
             self.assertIn("<!-- keel -->", text)
-        self.assertEqual(len(list(agents.glob("*.md"))), 2)
+        build = (agents / "keel-build.md").read_text(encoding="utf-8")
+        self.assertIn("name: keel-build\n", build)
+        self.assertIn("model: sonnet\n", build)
+        self.assertIn("effort: medium\n", build)
+        for number in (1, 2):
+            text = (agents / f"keel-hotfix-{number}.md").read_text(encoding="utf-8")
+            self.assertIn("model: opus\n", text)
+            self.assertIn("effort: low\n", text)
+        self.assertEqual(len(list(agents.glob("*.md"))), 3)
         self.assertFalse((self.home / ".codex" / "agents").exists())
+
+    def test_legacy_ladder_is_migrated_with_backup(self):
+        legacy = {"phase_review_limit": 3, "steps": [
+            {"claude": {"model": "sonnet", "effort": "xhigh"}, "codex": {"model": None, "effort": "high"}},
+            {"claude": {"model": "opus", "effort": "xhigh"}, "codex": {"model": None, "effort": "xhigh"}}]}
+        path = self.home / ".keel" / "ladder.json"
+        path.write_text(json.dumps(legacy), encoding="utf-8")
+        result = install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        self.assertEqual(self.data(path), ladder.DEFAULTS)
+        self.assertTrue(any("ladder.json" in saved for saved in result["backups"]))
+
+    def test_customised_ladder_is_untouched(self):
+        path = self.home / ".keel" / "ladder.json"
+        custom = {"phase_review_limit": 3, "steps": [
+            {"claude": {"model": "sonnet", "effort": "high"}, "codex": {"model": None, "effort": "high"}},
+            {"claude": {"model": "opus", "effort": "xhigh"}, "codex": {"model": None, "effort": "xhigh"}}]}
+        raw = json.dumps(custom)
+        path.write_text(raw, encoding="utf-8")
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        self.assertEqual(path.read_text(encoding="utf-8"), raw)
+        text = (self.home / ".claude" / "agents" / "keel-hotfix-1.md").read_text(encoding="utf-8")
+        self.assertIn("effort: high\n", text)
+
+    def test_unmarked_build_agent_is_kept(self):
+        agents = self.home / ".claude" / "agents"
+        agents.mkdir(parents=True)
+        (agents / "keel-build.md").write_text("mine", encoding="utf-8")
+        install.install(self.home, ROOT, ["claude"], "claude", sys.executable)
+        self.assertEqual((agents / "keel-build.md").read_text(encoding="utf-8"), "mine")
 
     def test_edited_ladder_survives_reinstall_and_resizes_agents(self):
         install.install(self.home, ROOT, ["claude"], "claude", sys.executable)

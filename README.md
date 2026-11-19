@@ -196,14 +196,23 @@ terminal. The agent starts the page, so it gives no stronger protection than typ
 approval. The intent review checks that the KB was searched first; the intent lists
 the KB pages read.
 
-Each review runs the chosen CLI once more with your own login — the intent review
-up to 3 times, the spec and plan reviews, each plan phase review (the limit is set in
-`~/.keel/ladder.json`, default 3), and one per LIGHT change. After a failed phase
-review the runner prints the next fix step; Claude Code gets fixer agents
-`keel-hotfix-<step>` and Codex gets an effort setting to run the fix with.
+Intent, spec and plan reviews run Keel's reviewer: the chosen CLI once more with your
+own login (the intent review up to 3 times). Phase and LIGHT code reviews on Claude Code
+use `/code-review` inside your session, which records the verdict; elsewhere Keel's
+reviewer runs them. The phase review limit is set in `~/.keel/ladder.json` (default 3).
+On Claude Code the build runs on a `keel-build` agent (Sonnet, medium effort by default)
+and failed phase reviews are fixed by `keel-hotfix-<step>` agents (Opus, low effort by
+default); both are settable in `~/.keel/ladder.json`. Codex gets an effort setting to run
+the fix with.
 A subscription login uses your plan's usage limits; an API key
 (including `ANTHROPIC_API_KEY` or `CODEX_API_KEY` in your environment) is billed
 to that API account.
+
+**Advisor (optional).** At the intent, spec and plan stages you may consult the Claude
+Code advisor next to Keel's reviewer. Turn it on with `/advisor opus`, pin it with
+`"advisorModel": "claude-opus-5-5"` in your settings, or start Claude Code with
+`claude --advisor opus`. It is experimental and its usage counts toward your plan. Keel
+never changes this setting.
 
 The workflow's rules, skills, templates, and review prompts are in English only. The
 installer's screens and harness map are bilingual. Open the map in the Workflow
@@ -383,3 +392,7 @@ automatically in the background.
 
 - macOS only (the path conventions assume macOS). Windows/Linux are not
   supported.
+- A Codex session started from inside Claude Code inherits `CLAUDECODE=1`,
+  so Keel treats it as a Claude Code host: its code reviews wait in
+  `awaiting-review` for a /code-review verdict and stop there (blocked, not
+  skipped). Start Codex from a plain terminal.

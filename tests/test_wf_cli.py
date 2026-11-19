@@ -264,10 +264,10 @@ class WorkflowCliTest(unittest.TestCase):
     def test_fail_prints_next_fix_step(self):
         first = self._phase_output("FAIL", 1)
         self.assertIn("next fix: step 1 of 2", first)
-        self.assertIn("sonnet/xhigh (agent keel-hotfix-1)", first)
+        self.assertIn("opus/low (agent keel-hotfix-1)", first)
         second = self._phase_output("FAIL", 2)
         self.assertIn("next fix: step 2 of 2", second)
-        self.assertIn("opus/xhigh (agent keel-hotfix-2)", second)
+        self.assertIn("opus/low (agent keel-hotfix-2)", second)
 
     def test_fail_at_limit_prints_no_further_step(self):
         output = self._phase_output("FAIL", 3)
@@ -278,6 +278,73 @@ class WorkflowCliTest(unittest.TestCase):
         output = self._phase_output("ERROR", 0)
         self.assertIn("review errored", output)
         self.assertNotIn("next fix", output)
+
+    def _awaiting_phase(self):
+        self.invoke("new", "example")
+        folder = work.resolve(self.kb, "example")
+        repo = folder.parent / "repo"
+        repo.mkdir()
+        for args in (("init", "-q", "-b", "main"), ("config", "user.name", "T"),
+                     ("config", "user.email", "t@example.com")):
+            subprocess.run(["git", "-C", str(repo), *args], check=True)
+        (repo / "a.txt").write_text("a\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "-qm", "c"], check=True)
+        head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True,
+                              text=True, check=True).stdout.strip()
+        (folder / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (folder / "plan.md").write_text("---\nkeel_plan: 1\n---\n## Phase 1: Build\n- [ ] Build\n", encoding="utf-8")
+        state = work.load_state(folder)
+        state["run"] = {"repo": str(repo), "phases": {"1": {
+            "status": "awaiting-review", "base": head, "commit": head, "tests_record": "t.md"}}}
+        fsutil.atomic_write_json(folder / "state.json", state)
+        findings = folder.parent / "findings.md"
+        findings.write_text("No findings.\n", encoding="utf-8")
+        return folder, repo, findings
+
+    def test_session_verdict_exit_codes(self):
+        folder, _, findings = self._awaiting_phase()
+        with patch.dict(os.environ, {"CLAUDECODE": "1"}):
+            result, output = self.invoke("critic", "phase", "1", "--work", "example")
+            self.assertEqual(result, 3)
+            self.assertIn("/code-review low", output)
+            self.assertIn("critic phase 1 --work", output)
+            self.assertEqual(self.invoke("critic", "phase", "1", "--work", "example", "--verdict", "FAIL")[0], 2)
+            result, output = self.invoke("critic", "phase", "1", "--work", "example",
+                                         "--verdict", "FAIL", "--findings", str(findings))
+            self.assertEqual(result, 1)
+            self.assertIn("FAIL", output)
+            self.assertIn("critic-phase-1-", output)
+            self.assertIn("next fix: step 1 of 2", output)
+            state = work.load_state(folder)
+            state["run"]["phases"]["1"]["status"] = "awaiting-review"
+            fsutil.atomic_write_json(folder / "state.json", state)
+            result, output = self.invoke("critic", "phase", "1", "--work", "example",
+                                         "--verdict", "PASS", "--findings", str(findings))
+            self.assertEqual(result, 0)
+            self.assertIn("PASS", output)
+            self.assertIn("critic-phase-1-", output)
+
+    def test_session_verdict_refused_without_code_review_mode(self):
+        _, _, findings = self._awaiting_phase()
+        result, _ = self.invoke("critic", "phase", "1", "--work", "example",
+                                "--verdict", "PASS", "--findings", str(findings))
+        self.assertEqual(result, 3)
+
+    def test_light_session_review_logs_code_review(self):
+        _, repo, findings = self._awaiting_phase()
+        with patch.dict(os.environ, {"CLAUDECODE": "1"}):
+            result, output = self.invoke("critic", "light", "--repo", str(repo), "--request", "Tidy")
+            self.assertEqual(result, 3)
+            self.assertIn("/code-review low HEAD", output)
+            self.assertIn("untracked", output)
+            self.assertIn("critic light --repo", output)
+            result, _ = self.invoke("critic", "light", "--repo", str(repo), "--request", "Tidy",
+                                    "--verdict", "PASS", "--findings", str(findings))
+        self.assertEqual(result, 0)
+        lines = (self.home / "state" / "workflow" / "light.log").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertIn("/code-review", lines[0])
 
 
 if __name__ == "__main__":

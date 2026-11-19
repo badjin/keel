@@ -296,7 +296,7 @@
           <label class="choice-card"><input type="radio" name="wf-critic" value="claude" disabled>Claude Code</label>
           <label class="choice-card"><input type="radio" name="wf-critic" value="codex" disabled>Codex</label>
         </div>
-        <p class="field-note" data-i18n="workflow.usageNote">Each review runs the chosen CLI once more with your own login — the intent review up to 3 times, the spec and plan reviews, up to 2 per plan phase, and one per LIGHT change. A subscription login uses your plan's usage limits; an API key (including <code>ANTHROPIC_API_KEY</code> or <code>CODEX_API_KEY</code> in your environment) is billed to that API account.</p>
+        <p class="field-note" data-i18n="workflow.usageNote">Intent, spec and plan reviews run the chosen CLI once more with your own login (the intent review up to 3 times). Phase and LIGHT code reviews run /code-review inside Claude Code, not an extra CLI run; elsewhere Keel's reviewer runs them. The phase review limit is set in <code>~/.keel/ladder.json</code> (default 3). A subscription login uses your plan's usage limits; an API key (including <code>ANTHROPIC_API_KEY</code> or <code>CODEX_API_KEY</code> in your environment) is billed to that API account.</p>
         <p class="field-note warn" id="wf-needs-kb" hidden data-i18n="workflow.needsKb">Create the Knowledge Base before installing Workflow.</p>
         <p class="field-note warn" id="wf-needs-cli" hidden data-i18n="workflow.needsCli">Select Claude Code or Codex on the Hooks step.</p>
         <p class="field-note warn" id="wf-needs-review-cli" hidden data-i18n="workflow.needsReviewCli">Install Claude Code or Codex to run reviews.</p>

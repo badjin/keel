@@ -27,6 +27,7 @@ Use the installed skills for the stage you are performing.
    Run `{{KEEL_WF}} critic plan --work <work-id>` and resolve its feedback.
 5. Use keel-run. Run `{{KEEL_WF}} run start --work <work-id> --repo <repo>`.
    Implement each phase, then run `{{KEEL_WF}} run phase N --work <work-id>`.
+   On Claude Code, delegate each phase's implementation to the `keel-build` agent and verify its result before running `run phase N`. When `run phase N` prints `awaiting-review`, run the printed `/code-review` command, check every finding against the code, write a findings file (each finding confirmed or rejected with a reason, or "no findings"), and record it with `{{KEEL_WF}} critic phase N --work <work-id> --verdict PASS|FAIL --findings <file>`. In Codex the session implements and the runner reviews the phase as before.
    On a failed phase review do not fix it yourself: read the printed `next fix` line and follow keel-run.
    The phase review limit is set in `~/.keel/ladder.json` (default 3).
 6. Run every approved acceptance scenario in its stated environment.
@@ -52,4 +53,9 @@ Use the installed skills for the stage you are performing.
 
 Make the developer-only change, then run
 `{{KEEL_WF}} critic light --repo <repo> --request "<one-line request>"`.
+On Claude Code, `critic light` prints a `/code-review` command: run it, check each finding against the code, write a findings file, and rerun the same `critic light` command with `--verdict PASS|FAIL --findings <file>`. Elsewhere it runs Keel's reviewer as before.
 Resolve review feedback before reporting completion.
+
+## Advisor (optional)
+
+At the intent, spec and plan stages you may also consult the Claude Code advisor next to Keel's reviewer. The user turns it on with `/advisor opus`, or pins `"advisorModel": "claude-opus-5-5"` in settings, or starts Claude Code with `claude --advisor opus`. It is experimental and its usage counts toward the user's plan. Keel never changes this setting.

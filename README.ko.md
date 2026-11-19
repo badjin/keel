@@ -173,14 +173,21 @@ python3 app/server.py
 먼저 지식 베이스를 검색했는지 확인하며, 의도 문서에는 읽은 지식 베이스 페이지가
 적힙니다.
 
-리뷰마다 선택한 CLI를 본인의 로그인으로 한 번 더 실행합니다. 의도 리뷰는 최대
-3번, 명세와 계획 리뷰, 계획의 각 단계 리뷰(횟수 상한은 `~/.keel/ladder.json`에서
-설정하며 기본값은 3), LIGHT 변경마다 1번입니다.
-단계 리뷰가 실패하면 러너가 다음 수정 단계를 출력합니다. Claude Code 에서는 수정용
-에이전트 `keel-hotfix-<step>` 을, Codex 에서는 수정을 실행할 노력 수준(effort) 설정을
-사용합니다.
+의도, 명세, 계획 리뷰는 Keel 의 리뷰어가 맡아 선택한 CLI를 본인의 로그인으로 한 번 더
+실행합니다(의도 리뷰는 최대 3번). Claude Code 에서 단계 리뷰와 LIGHT 코드 리뷰는 세션 안에서
+`/code-review` 로 하고 세션이 판정을 기록하며, 그 밖의 환경에서는 Keel 의 리뷰어가 합니다.
+단계 리뷰 횟수 상한은 `~/.keel/ladder.json`에서 설정합니다(기본값 3). Claude Code 에서는
+구현을 `keel-build` 에이전트(기본 Sonnet, 노력 수준 medium)가 맡고, 단계 리뷰가 실패하면
+수정용 에이전트 `keel-hotfix-<step>` (기본 Opus, 노력 수준 low)이 고칩니다. 둘 다
+`~/.keel/ladder.json`에서 바꿀 수 있습니다. Codex 에서는 수정을 실행할 노력 수준(effort)
+설정을 사용합니다.
 구독 로그인은 구독 요금제의 사용량 한도를 쓰고, API 키 로그인(환경의
 `ANTHROPIC_API_KEY` 또는 `CODEX_API_KEY` 포함)은 해당 API 계정에 청구됩니다.
+
+**어드바이저(선택).** 의도, 명세, 계획 단계에서 Keel 의 리뷰어와 함께 Claude Code
+어드바이저에게 자문할 수 있습니다. `/advisor opus` 로 켜거나, 설정에
+`"advisorModel": "claude-opus-5-5"` 를 고정하거나, `claude --advisor opus` 로 Claude Code 를
+시작합니다. 실험 기능이며 사용량은 본인 요금제에서 차감됩니다. Keel 은 이 설정을 바꾸지 않습니다.
 
 워크플로우 규칙, 스킬, 템플릿, 리뷰 지침은 영어로만 제공됩니다. 설치기 화면과 하네스
 지도는 영어·한국어를 지원합니다. 지도는 워크플로우 탭과 완료 화면에서 열 수
@@ -344,3 +351,7 @@ Keel 은 한 달에 한 번쯤, 세션이 끝난 뒤 `kb-health` 스킬을 백�
 
 - macOS 전용입니다 (경로 규칙이 macOS 기준). Windows/Linux 는 지원하지
   않습니다.
+- Claude Code 안에서 띄운 Codex 세션은 `CLAUDECODE=1` 을 물려받아 Claude Code
+  호스트로 판정됩니다. 그래서 코드 리뷰가 /code-review 판정을 기다리는
+  `awaiting-review` 에서 멈춥니다 (건너뛰지 않고 막힙니다). Codex 는 일반 터미널에서
+  띄우세요.

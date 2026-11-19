@@ -188,6 +188,36 @@ class RunnerTest(unittest.TestCase):
     def test_errored_review_retry_with_no_changes(self):
         self._assert_review_retry_with_no_changes("ERROR")
 
+    def test_code_review_mode_stops_at_awaiting_review(self):
+        self.start()
+        (self.repo / "file.txt").write_text("after\n")
+        calls = []
+        with patch.dict(os.environ, {"CLAUDECODE": "1"}):
+            result = runner.run_phase(self.home, self.kb, self.folder, 1,
+                                      review=lambda *a, **k: calls.append(1))
+            commit = self.git("rev-parse", "HEAD")
+            self.assertEqual(calls, [])
+            self.assertEqual(result["status"], "awaiting-review")
+            self.assertIn(f"/code-review low {self.initial}..{commit}", result["instruction"])
+            self.assertIn(str(self.repo.resolve()), result["instruction"])
+            self.assertIn(f"critic phase 1 --work {self.folder.name}", result["instruction"])
+            self.assertEqual(work.load_state(self.folder)["run"]["phases"]["1"]["status"], "awaiting-review")
+            with self.assertRaisesRegex(runner.RunError, "phase 1 is not done"):
+                runner.run_phase(self.home, self.kb, self.folder, 2, review=self.review("PASS"))
+
+    def test_without_code_review_mode_review_runs(self):
+        self.start()
+        (self.repo / "file.txt").write_text("after\n")
+        calls = []
+
+        def review(*args, **kwargs):
+            calls.append(1)
+            return "PASS", self.folder / "records" / "review.md", [], ""
+
+        result = runner.run_phase(self.home, self.kb, self.folder, 1, review=review)
+        self.assertEqual((result["status"], len(calls)), ("done", 1))
+        self.assertNotIn("instruction", result)
+
     def test_external_commit_is_reviewed(self):
         self.start()
         (self.repo / "file.txt").write_text("external\n")

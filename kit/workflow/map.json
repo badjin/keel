@@ -909,8 +909,8 @@
             "ko": "critic phase"
           },
           "desc": {
-            "en": "Reviews the committed phase; on FAIL the runner prints a next fix line (agent and effort). The limit is set in ~/.keel/ladder.json (default 3).",
-            "ko": "커밋된 단계를 검토하며 FAIL 시 다음 수정 단계(에이전트와 노력 수준)를 출력합니다. 횟수 상한은 ~/.keel/ladder.json에서 설정합니다(기본값 3)."
+            "en": "On Claude Code the session runs /code-review on the committed phase and records the verdict; elsewhere Keel's reviewer runs. On FAIL the runner prints a next fix line (agent and effort). The limit is set in ~/.keel/ladder.json (default 3).",
+            "ko": "Claude Code에서는 세션이 커밋된 단계를 /code-review 로 검토하고 판정을 기록하며, 그 밖의 환경에서는 Keel 의 리뷰어가 검토합니다. FAIL 시 다음 수정 단계(에이전트와 노력 수준)를 출력합니다. 횟수 상한은 ~/.keel/ladder.json에서 설정합니다(기본값 3)."
           },
           "src": "{KEEL_HOME}/workflow/keel_wf.py (critic phase)",
           "kind": "d",
@@ -1392,8 +1392,8 @@
             "ko": "critic light"
           },
           "desc": {
-            "en": "Reviews the LIGHT result.",
-            "ko": "LIGHT 결과를 검토합니다."
+            "en": "On Claude Code the session runs /code-review on the LIGHT result and records the verdict; elsewhere Keel's reviewer runs.",
+            "ko": "Claude Code에서는 세션이 LIGHT 결과를 /code-review 로 검토하고 판정을 기록하며, 그 밖의 환경에서는 Keel 의 리뷰어가 검토합니다."
           },
           "src": "{KEEL_HOME}/workflow/keel_wf.py (critic light)",
           "kind": "d",

@@ -47,6 +47,8 @@ def _parser() -> argparse.ArgumentParser:
     review.add_argument("--base", default="")
     review.add_argument("--statements")
     review.add_argument("--extra-review", action="store_true")
+    review.add_argument("--verdict", choices=("PASS", "FAIL"))
+    review.add_argument("--findings")
 
     run = commands.add_parser("run")
     run_commands = run.add_subparsers(dest="run_command", required=True)
@@ -255,6 +257,8 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
                                       extra_review=args.extra_review)
             print(result["status"])
             print(result["tests_record"])
+            if result.get("instruction"):
+                print(result["instruction"])
             if result["status"] == "review-failed":
                 if result.get("review_record"):
                     print(result["review_record"])
@@ -263,7 +267,7 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
                         if line.startswith("CHECK "):
                             print(line)
                 _print_next_step(keel_home, folder, args.phase, result.get("verdict"))
-            return 0 if result["status"] in ("done", "no-change") else 1
+            return 0 if result["status"] in ("done", "no-change", "awaiting-review") else 1
 
         if args.command in ("verify", "audit", "archive"):
             folder = work.resolve(kb, args.work)
@@ -290,19 +294,58 @@ def main(argv=None, keel_home: Path = Path(__file__).resolve().parent.parent) ->
         if args.stage != "light" and not args.work:
             print("--work required")
             return 2
-        if args.stage in ("phase", "light") and not args.repo:
+        if args.verdict and (not args.findings or args.stage not in ("phase", "light")):
+            print("--verdict needs --findings and a phase or light review")
+            return 2
+        session_review = args.stage in ("phase", "light") and critic.code_review_mode()
+        if args.stage == "light" and not args.repo:
+            print("--repo required")
+            return 2
+        if args.stage == "phase" and not args.repo and not (args.verdict or session_review):
             print("--repo required")
             return 2
         folder = work.resolve(kb, args.work) if args.work else None
+        repo = Path(args.repo).resolve() if args.repo else None
+        if args.stage == "phase" and repo is None:
+            run_state = work.load_state(folder).get("run")
+            if not run_state:
+                print("run has not started")
+                return 3
+            repo = Path(run_state["repo"])
         limit = {}
         if args.stage == "phase":
             try:
                 limit["phase_limit"] = ladder.load(keel_home).phase_review_limit
             except ladder.LadderError as error:
                 raise critic.Refused(str(error)) from error
+        if args.verdict:
+            verdict, record = critic.record_session_review(
+                args.stage, keel_home=keel_home, folder=folder, repo=repo, phase=args.phase,
+                verdict=args.verdict, findings=Path(args.findings).resolve(),
+                request=args.request, extra_review=args.extra_review, **limit)
+            print(verdict)
+            if record:
+                print(record.resolve())
+            if verdict == "FAIL" and args.stage == "phase":
+                _print_next_step(keel_home, folder, args.phase, verdict)
+            return 0 if verdict == "PASS" else 1
+        if session_review:
+            try:
+                level = ladder.load(keel_home).code_review_level
+            except ladder.LadderError as error:
+                raise critic.Refused(str(error)) from error
+            if args.stage == "phase":
+                current = work.load_state(folder)["run"]["phases"].get(str(args.phase), {})
+                if not (current.get("base") and current.get("commit")):
+                    raise critic.Refused(f"phase {args.phase} has no commit to review; run run phase {args.phase}")
+                print(critic.code_review_instruction(level, current["base"], current["commit"], repo,
+                                                     phase=args.phase, work_id=args.work))
+            else:
+                print(critic.code_review_instruction(level, args.base or "HEAD", "", repo, request=args.request))
+            return 3
         verdict, record, checks, answer = critic.run_review(
             args.stage, keel_home=keel_home, kb=kb, folder=folder,
-            repo=Path(args.repo).resolve() if args.repo else None,
+            repo=repo,
             phase=args.phase, request=args.request, base=args.base,
             statements=Path(args.statements).resolve() if args.statements else None,
             extra_review=args.extra_review, **limit,

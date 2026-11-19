@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-DEFAULTS = {
+LEGACY_DEFAULTS = {
     "phase_review_limit": 3,
     "steps": [
         {"claude": {"model": "sonnet", "effort": "xhigh"},
@@ -13,6 +13,18 @@ DEFAULTS = {
         {"claude": {"model": "opus", "effort": "xhigh"},
          "codex": {"model": None, "effort": "xhigh"}},
     ],
+}
+
+DEFAULTS = {
+    "phase_review_limit": 3,
+    "steps": [
+        {"claude": {"model": "opus", "effort": "low"},
+         "codex": {"model": None, "effort": "high"}},
+        {"claude": {"model": "opus", "effort": "low"},
+         "codex": {"model": None, "effort": "xhigh"}},
+    ],
+    "build": {"claude": {"model": "sonnet", "effort": "medium"}},
+    "code_review_level": "low",
 }
 
 
@@ -30,6 +42,8 @@ class Step:
 class Ladder:
     phase_review_limit: int
     steps: List[Step]
+    build: dict
+    code_review_level: str
 
 
 def _parse(data: dict, path: Path) -> Ladder:
@@ -62,7 +76,18 @@ def _parse(data: dict, path: Path) -> Ladder:
                 raise bad(f"step {index} {cli}.model must be a string")
             parts[cli] = {"model": model, "effort": part["effort"]}
         steps.append(Step(claude=parts["claude"], codex=parts["codex"]))
-    return Ladder(phase_review_limit=limit, steps=steps)
+    build = data.get("build", DEFAULTS["build"])
+    claude = build.get("claude") if isinstance(build, dict) else None
+    if (not isinstance(claude, dict)
+            or not isinstance(claude.get("model"), str) or not claude["model"]
+            or not isinstance(claude.get("effort"), str) or not claude["effort"]):
+        raise bad("build.claude must be an object with string model and effort")
+    level = data.get("code_review_level", DEFAULTS["code_review_level"])
+    if level not in ("low", "medium", "high"):
+        raise bad("code_review_level must be low, medium or high")
+    return Ladder(phase_review_limit=limit, steps=steps,
+                  build={"model": claude["model"], "effort": claude["effort"]},
+                  code_review_level=level)
 
 
 def load(keel_home) -> Ladder:
